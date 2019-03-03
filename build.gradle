@@ -24,16 +24,16 @@ task("create-dirs").doLast(
 )
 
 allprojects {
-	buildscript {
-		repositories {
-			mavenCentral()
-		}
-	}
+    buildscript {
+        repositories {
+            mavenCentral()
+        }
+    }
 }
 
 repositories {
     mavenCentral()
-	jcenter()
+    jcenter()
 }
 
 ext {
@@ -41,13 +41,13 @@ ext {
         commonsJava: "2.1.14",
         disruptor: "3.4.2",
         dockerJava: "3.0.14",
-		grpc: "1.8.0",
-		guava: "20.0",
+        grpc: "1.8.0",
+        guava: "20.0",
         log4j: "2.8.2",
         mongoose: "4.1.1",
-	    netty: "4.1.16.Final",
-	    opencensus: "0.8.0",
-	    protobuf: "3.4.0",
+        netty: "4.1.16.Final",
+        opencensus: "0.8.0",
+        protobuf: "3.4.0",
     ]
 }
 
@@ -122,11 +122,11 @@ jar {
         )
     }
 
-	from configurations
-		.provided
-		.collect {
-			zipTree(it)
-		}
+    from configurations
+            .provided
+            .collect {
+        zipTree(it)
+    }
 
     exclude "META-INF/*.RSA", "META-INF/*.SF", "META-INF/*.DSA"
 }
@@ -206,43 +206,43 @@ uploadArchives {
                     }
 
                     developers {
-						developers {
-							developer {
-								id "akurilov"
-								name "Andrey Kurilov"
-								email "akurilov123@gmail.com"
-							}
-							developer {
-								id "dadlex"
-								name "Alexander Aphonin"
-								email "alex15051997@yandex.ru"
-							}
-							developer {
-								id "hoklet"
-								name "Alexander Aphonin"
-								email "hokletka@gmail.com"
-							}
+                        developers {
+                            developer {
+                                id "akurilov"
+                                name "Andrey Kurilov"
+                                email "akurilov123@gmail.com"
+                            }
+                            developer {
+                                id "dadlex"
+                                name "Alexander Aphonin"
+                                email "alex15051997@yandex.ru"
+                            }
+                            developer {
+                                id "hoklet"
+                                name "Alexander Aphonin"
+                                email "hokletka@gmail.com"
+                            }
                             developer {
                                 id "ivan-abc"
                                 name "Ivan Sysoev"
-                                email ""
+                                email "ivanabc97@gmail.com"
                             }
                             developer {
                                 id "paulgrape"
                                 name "Pavel Vinogradov"
-                                email ""
+                                email "vin.pavel13@gmail.com"
                             }
-							developer {
-								id "veronikaKochugova"
-								name "Veronika Kochugova"
-								email "Veronika.Kochugova@dell.com"
-							}
-							developer {
-								id "zhenytim"
-								name "Evgeny Timoshchuk"
-								email "zheny.tim@gmail.com"
-							}
-						}
+                            developer {
+                                id "veronikaKochugova"
+                                name "Veronika Kochugova"
+                                email "Veronika.Kochugova@dell.com"
+                            }
+                            developer {
+                                id "zhenytim"
+                                name "Evgeny Timoshchuk"
+                                email "zheny.tim@gmail.com"
+                            }
+                        }
                     }
                 }
             }
