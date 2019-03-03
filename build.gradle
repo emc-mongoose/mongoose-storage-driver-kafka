@@ -1,0 +1,309 @@
+plugins {
+    id 'com.bmuschko.docker-remote-api' version '4.5.0'
+}
+
+description = "Kafka storage driver for Mongoose"
+
+apply plugin: "java"
+apply plugin: "maven"
+apply plugin: "signing"
+
+group = "com.github.emc-mongoose"
+version = "0.1.0"
+
+tasks.withType(JavaCompile) {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+task("create-dirs").doLast(
+    {
+        sourceSets*.java.srcDirs*.each { it.mkdirs() }
+        sourceSets*.resources.srcDirs*.each { it.mkdirs() }
+    }
+)
+
+allprojects {
+	buildscript {
+		repositories {
+			mavenCentral()
+		}
+	}
+}
+
+repositories {
+    mavenCentral()
+	jcenter()
+}
+
+ext {
+    depVersion = [
+        commonsJava: "2.1.14",
+        disruptor: "3.4.2",
+        dockerJava: "3.0.14",
+		grpc: "1.8.0",
+		guava: "20.0",
+        log4j: "2.8.2",
+        mongoose: "4.1.1",
+	    netty: "4.1.16.Final",
+	    opencensus: "0.8.0",
+	    protobuf: "3.4.0",
+    ]
+}
+
+configurations {
+    provided
+    testCompile {
+        extendsFrom(compileOnly, provided)
+    }
+    all*.exclude group: "com.sun.jersey", module: "jersey-core"
+}
+
+sourceSets {
+    main {
+        compileClasspath += configurations.provided
+    }
+}
+
+configurations.all {
+    exclude module: "slf4j-log4j12"
+}
+
+dependencies {
+
+    compileOnly(
+        "com.github.emc-mongoose:mongoose:${depVersion.mongoose}",
+        "com.github.emc-mongoose:mongoose-storage-driver-coop:${depVersion.mongoose}",
+        "com.github.emc-mongoose:mongoose-storage-driver-coop-nio:${depVersion.mongoose}",
+        "com.github.akurilov:java-commons:${depVersion.commonsJava}",
+        "org.apache.logging.log4j:log4j-api:${depVersion.log4j}",
+    )
+
+    testCompile(
+        "junit:junit:[4,)",
+        "com.github.docker-java:docker-java:${depVersion.dockerJava}",
+        "org.apache.commons:commons-csv:1.1",
+    )
+
+    testRuntime(
+        "com.lmax:disruptor:${depVersion.disruptor}",
+    )
+}
+
+test {
+    /*
+    systemProperty "com.sun.management.jmxremote", "true"
+    systemProperty "com.sun.management.jmxremote.port", "9010"
+    systemProperty "com.sun.management.jmxremote.local.only", "false"
+    systemProperty "com.sun.management.jmxremote.authenticate", "false"
+    systemProperty "com.sun.management.jmxremote.ssl", "false"
+    */
+    testLogging {
+        events "passed", "skipped", "failed", "standardOut"
+        showExceptions = true
+        showStandardStreams = true
+    }
+}
+
+test.dependsOn += jar
+
+// travis deploy stage runs "./gradlew check" again which is unnecessary
+check.dependsOn -= test
+
+jar {
+
+    archiveName "$project.name.$extension"
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    manifest {
+        attributes (
+            "Implementation-Version": version,
+            "Implementation-Title": project.description,
+        )
+    }
+
+	from configurations
+		.provided
+		.collect {
+			zipTree(it)
+		}
+
+    exclude "META-INF/*.RSA", "META-INF/*.SF", "META-INF/*.DSA"
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = "sources"
+    archiveName "$project.name-$classifier.$extension"
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = "javadoc"
+    archiveName "$project.name-$classifier.$extension"
+    from javadoc.destinationDir
+}
+
+artifacts {
+    archives jar
+    archives sourcesJar
+    archives javadocJar
+}
+
+def ossrhUsername = project.hasProperty("ossrhUsername") ? project.property("ossrhUsername") : null
+def ossrhPassword = project.hasProperty("ossrhPassword") ? project.property("ossrhPassword") : null
+
+signing {
+    required {
+        gradle.taskGraph.hasTask("uploadArchives")
+    }
+    sign configurations.archives
+}
+
+// see http://central.sonatype.org/pages/gradle.html for details
+uploadArchives {
+
+    // prevent the execution for empty (not leaf) subprojects and tests packages
+    if(project.name.contains("tests")) {
+        return
+    }
+
+    repositories {
+        mavenDeployer {
+            beforeDeployment {
+                MavenDeployment deployment -> signing.signPom(deployment)
+            }
+
+            repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                authentication(userName: ossrhUsername, password: ossrhPassword)
+            }
+
+            snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+                authentication(userName: ossrhUsername, password: ossrhPassword)
+            }
+
+            pom {
+
+                groupId = rootProject.group
+                name = "mongoose-storage-driver-kafka"
+                artifactId = name
+
+                project {
+                    description = rootProject.description
+
+                    url "https://github.com/emc-mongoose/mongoose-storage-driver-kafka/wiki"
+
+                    scm {
+                        connection "https://github.com/emc-mongoose/mongoose-storage-driver-kafka.git"
+                        developerConnection "https://github.com/emc-mongoose/mongoose-storage-driver-kafka.git"
+                        url "https://github.com/emc-mongoose/mongoose-storage-driver-kafka.git"
+                    }
+
+                    licenses {
+                        license {
+                            name "The MIT License (MIT)"
+                            url "https://github.com/emc-mongoose/mongoose-storage-driver-kafka/wiki/License"
+                        }
+                    }
+
+                    developers {
+						developers {
+							developer {
+								id "akurilov"
+								name "Andrey Kurilov"
+								email "akurilov123@gmail.com"
+							}
+							developer {
+								id "dadlex"
+								name "Alexander Aphonin"
+								email "alex15051997@yandex.ru"
+							}
+							developer {
+								id "hoklet"
+								name "Alexander Aphonin"
+								email "hokletka@gmail.com"
+							}
+                            developer {
+                                id "ivan-abc"
+                                name "Ivan Sysoev"
+                                email ""
+                            }
+                            developer {
+                                id "paulgrape"
+                                name "Pavel Vinogradov"
+                                email ""
+                            }
+							developer {
+								id "veronikaKochugova"
+								name "Veronika Kochugova"
+								email "Veronika.Kochugova@dell.com"
+							}
+							developer {
+								id "zhenytim"
+								name "Evgeny Timoshchuk"
+								email "zheny.tim@gmail.com"
+							}
+						}
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+// Docker tasks ////////////////////////////////////////
+
+import com.bmuschko.gradle.docker.tasks.image.*
+import com.bmuschko.gradle.docker.tasks.container.*
+
+task buildImage(type: DockerBuildImage, dependsOn: jar) {
+    inputDir = rootProject.projectDir
+    dockerFile = project.file("docker${File.separator}Dockerfile")
+    imageId = "emcmogoose/mongoose-storage-driver-kafka"
+    buildArgs = ["MONGOOSE_VERSION": "${depVersion.mongoose}"]
+    tags = [
+            "emcmongoose/mongoose-storage-driver-kafka:${version}".toString(),
+            "emcmongoose/mongoose-storage-driver-kafka:testing",
+    ]
+}
+
+task pushProductionImage(type: DockerPushImage, dependsOn: buildImage) {
+    imageName = "emcmongoose/mongoose-storage-driver-kafka"
+    tag = "emcmongoose/mongoose-storage-driver-kafka:${version}".toString()
+}
+
+task pushTestingImage(type: DockerPushImage, dependsOn: buildImage) {
+    imageName = "emcmongoose/mongoose-storage-driver-kafka:testing".toString()
+}
+
+task buildRobotestImage(type: DockerBuildImage) {
+    inputDir = rootProject.projectDir
+    dockerFile = project.file("docker${File.separator}Dockerfile.robotest")
+    imageId = "emcmongoose/mongoose-storage-driver-kafka-robotest"
+    tags = [
+            "emcmongoose/mongoose-storage-driver-kafka-robotest:${version}"
+    ]
+}
+
+task createRobotestContainer(type: DockerCreateContainer, dependsOn: [buildImage, buildRobotestImage]) {
+    attachStderr = true
+    attachStdout = true
+    autoRemove = true
+    binds = [
+            "${rootProject.buildDir}": "/root/mongoose-storage-driver-kafka/build",
+            "/var/run/docker.sock"   : "/var/run/docker.sock"
+    ]
+    envVars = [
+            "HOST_WORKING_DIR": rootProject.projectDir.absolutePath,
+            "MONGOOSE_VERSION": "${depVersion.mongoose}",
+            "SUITE"           : System.getenv("SUITE"),
+            "TEST"            : System.getenv("TEST"),
+    ]
+    imageId = buildRobotestImage.getImageId()
+    network = "host"
+    tty = true
+    doLast {
+        println "Created container for the ${System.env.SUITE}.${System.env.TEST} test"
+    }
+
+}
