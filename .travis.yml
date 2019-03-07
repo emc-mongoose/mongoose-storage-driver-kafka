@@ -1,43 +1,37 @@
 language: java
-
 sudo: true
-
 addons:
   ulimit:
     nofile: 1048576
-
 env:
   global:
   - COMMIT=${TRAVIS_COMMIT::8}
-  # DOCKER_USER
-  - secure: "kYrz3MlpeD25DUOq4SYBCD7+jCQo7B75Cyw/l3fYFBVO1VMK5QqbLKKU6Z3OuvtAZMAMip2aY8S4DnAoyLTXrp5k8it7Xia+tzOwam3ecc3OtnAcdamNUTi5HzBHYB6TQ3MrwDWE5P6z2ZIZexohiPdhdnqBrHfHeCwtPShlXQLQ+EHHm1a91uqi8ufgDRN8zVU+W2AuRrykNA5DiTqZRsH4Elbhg7ZKveQwIvkGkUIod2DKxxmuErxCqydiko99fJmxZWg9khKQtcJ3Wos/HsgKqnOxAvXLz0kYO24/TqyodRjvFNDlbfoPBa4bCSeHoP7ptQAsDx+RPb3EfHDMCPrh2AIjaWTTBhbJIVduZFFWmR4bNIJNFGNtgd3notkpJGTshlQe3SKAFvaE+kuCc4O0jJmHmrp2M9D3L4I7GEdjMc+SHo0ZpNTe27ID5L2XzlqBYretRM5vq2W2BS4MvZHVJ9XJVMYAO3WV0BXVaKXyxd61cKI6VjIWKEepw0FgxrE0wltSVTAxo+Mia6ppWvoGsCOX2EXrdy5MtPvFXPpk4bHYdcWQMPZPVRKQzVFyPKX4msiIqKzkr6nwAQISXYs8UrHU+UlWYthwXRNGR01Jfb177Q00hqmKlX6TEqEcLdv+xThzGecPtPdITLKiXMEn9ntAUseCy1rGA2cqKSw="
-  # DOCKER_PASS
-  - secure: "Q1MIBYcWKLIi+g9AbtecJtr2ctb4joTkLjf8VKwUm9EFafQZVMjOAFMk4Nmgd3/mLOlRBaa8tRdvC9x0/AmWzskWM+6W6CF62c2eYYDsL9lkHRrbx2ILtaLaHsUDjKd8EZBcCbFnWBLyom3173J8YtvdVVvn1iTPLTSdMHcHZFiq/Nlbz/MT8aPfl3fFJgp1/w6/UsFs37Xm9+meXRid6+C968MIURbuJJfaaVSq5PP0EdFyQX1qoeF/B7LR4cnp/wxsMtetvjm1ID/QzXcTlR9IRwAh5w9mP2oLbb+PONVfRPeM5V7zSpwMMB5rgiQWcinCj6eNVBgGXdzGz+SyQdnJz70o8PqSKwBcIHmykgyvf+x6BA0vBOF6aGQMFd/dvlgCssP6VbVTnvaETP1Q0o3Jc5cgW/zUQru+IprDTgm7zPuj4k/sWqJ5NVA9ONP7h10a9zyYE5PHta+UcG5sBt/w3bwV4hY44NsAKVIm1s5RQQIMAZ1r1nra+l1aBXznbCc13bNOHdBRVcAgMf3/Rv7cn1TIn9m7MTYMgPW/PJfdqPJEPXm+qw/q84B5gfPu9GfQ0opNyiix8ity+5hCFt2BhWsge/eFNPTQk1yJm5mROicIMZIzlVfmJmaX465/EF1hkbNLNl/QtRJiKjoAgVvRRE+ANlnTNJBYcVETv34="
+  - secure: UwPvUox14dxHIcuq+eV3xwzv1BtQpdibMqA5sM9cFdD23yoXC18XfoVk1FL8X9INX2uFddZ6zLHOQwDuvj1WbBphS6yaSOVj5YnM6osrSTgvjxVuyT04sjDfnY8jpgmrfLhqAuVxjM11PwEdn3H+sPXdXGLpLX8sp6VD+FJr8JqzhDcLvJfbJ0ucTmSCUUbX2+N25YNL0HpylzmPhjzRxf4Xekzdq+wkWN+pYAs9vQSxr4nd/4KVXY1WLTU+JqC9KnDdQPvY0OE6LhMFWV7WarBsll65hA7C0IOccx7gTrUTY3GRy3uE41uVqKxJJyZFx5qBn02dtuKSmOHvbU9XSxoAXxFEOix2tEyzRTwaNedTFVwyBJU3vmwlJx4QHiXGgzp6qHGWirGC4tFYbfcOo6nybcIJKdSHxcGFS+uONgWn4jSVU329N7GYpQ9p8n7UNljLeSiD4b04VgfmLxnOBynFpVCNJr+iBwXpI5RXWD7PPPrJJ+duSq4VJ6eYtC6p1EDfQCcuPFRb+BZdktvPCDUte+HgdRgLk+M1Cwx4gH9rL1sSeUyZnw3oUl+9dihq9vCiOtPTJVQ1SEw9qA7h16YlSPjJoIahLm9dX5/fN/bqdxG2VqoDW5SzozWd/S4OYeJn/uDKBdd8vuGEm7gR0yD9doI8LQ6l8JqGjTBxveM=
+  - secure: SdztqE9uGoNqSUv2NebbM69rvcdwiFCehGU0oq7IB+ViBVCBGi1pLod70UAvtBiAeQF3gUe8kXdv0S+Whj2c2qdEBnRKlDVTScxZbdys0V8KOTmFLI9W1dkowmH86dNNDg94sSS+DrOXdj5qlpBXktWlIcBxTJkAXwJqSVOluQvIhXyrX1oJ/4+0r011rW+6i+odkmR0kBon5unhiYC9/FwgFS9TkwEpQWvIlIFbbGMqt4uMEJ/PzDmZTxR91nDY7zhpQl/I8kfiBHDewwvGHAyCY5LvW4LXqCKZMtKDl7ZMkZVpMF9klazEpxvA+N22XzHviyyI/o4xWs+moD992PmSSYEi+/uK3RMH2YvyNfTy5tgWZ/vb2yu6ZgNJu0xfyNuoReULBbw4Tqh4V9vWBRuVB2JfKxqrP3gz6vMeWxNDMIkCI1v5gl+1+7foQhrSgrTqYa91mQq+8aFaoU7zGt+iaw2iNKrvYE1kIn0r1vNIpDUwuLwjwEwbJK0vwq5zDJJKKQxMyqYljsojEOfROrtt6yKMeZGN6R3kUFIJ1ogYBR+TGndfp8vaFmvwpcObNdPxCT1mWUi/2UME04hoI1RGsZfT9Ej7fcDousACWNLiAV9VUVcXnxEr6L5HAT9KhGVzvvA+MfaeIFU79qt59RsXKxbOhi5OMTZcLnV/+74=
 before_install:
 - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-- sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+- sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu
+  $(lsb_release -cs) stable"
 - sudo apt-get update
 - sudo apt-get -y install docker-ce
-
 jobs:
   include:
-
-  - stage: "Tests"
+  - stage: Tests
     script: "./gradlew test"
-
-  - stage: "Deploy to DockerHub"
+  - stage: Deploy to DockerHub
     script:
-    - ./gradlew clean jar
+    - "./gradlew clean jar"
     - docker login -u $DOCKER_USER -p $DOCKER_PASS
     - export REPO=emcmongoose/mongoose-storage-driver-kafka
-    - export TAG=`if [ "$TRAVIS_BRANCH" == "master" ]; then echo "latest"; else echo $TRAVIS_BRANCH; fi`
+    - export TAG=`if [ "$TRAVIS_BRANCH" == "master" ]; then echo "latest"; else echo
+      $TRAVIS_BRANCH; fi`
     - export MONGOOSE_VERSION=$(cat build.gradle | grep "mongoose:" | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
-    - docker build --build-arg MONGOOSE_VERSION=${MONGOOSE_VERSION} -f docker/Dockerfile -t $REPO:$COMMIT .
+    - docker build --build-arg MONGOOSE_VERSION=${MONGOOSE_VERSION} -f docker/Dockerfile
+      -t $REPO:$COMMIT .
     - docker tag $REPO:$COMMIT $REPO:$TAG
     - docker tag $REPO:$COMMIT $REPO:travis-$TRAVIS_BUILD_NUMBER
     - docker push $REPO
-
-  - stage: "Deploy to GitHub releases"
+  - stage: Deploy to GitHub releases
     deploy:
       skip_cleanup: true
       provider: releases
