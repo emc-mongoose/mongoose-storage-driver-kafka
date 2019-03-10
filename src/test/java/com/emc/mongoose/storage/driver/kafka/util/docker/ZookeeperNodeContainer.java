@@ -10,17 +10,17 @@ import java.io.Closeable;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
-public class KafkaNodeContainer
+public class ZookeeperNodeContainer
 implements Closeable {
 
-        public static final int PORT = 9080;
-        private static final Logger LOG = Logger.getLogger(KafkaNodeContainer.class.getSimpleName());
-        private static final String IMAGE_NAME = "ches/kafka:latest";
+        public static final int PORT = 9090;
+        private static final Logger LOG = Logger.getLogger(ZookeeperNodeContainer.class.getSimpleName());
+        private static final String IMAGE_NAME = "jplock/zookeeper:latest";
         private static final DockerClient DOCKER_CLIENT = DockerClientBuilder.getInstance().build();
 
         private static String CONTAINER_ID = null;
 
-	public KafkaNodeContainer()
+	public ZookeeperNodeContainer()
 	throws Exception {
             try {
                 DOCKER_CLIENT.inspectImageCmd(IMAGE_NAME).exec();
@@ -34,7 +34,7 @@ implements Closeable {
             final CreateContainerResponse container = DOCKER_CLIENT
                     .createContainerCmd(IMAGE_NAME)
                     .withCmd("standalone")
-                    .withName("kafka_node")
+                    .withName("zookeeper_node")
                     .withNetworkMode("host")//--network host
                     .withAttachStderr(true)
                     .withAttachStdout(true)
