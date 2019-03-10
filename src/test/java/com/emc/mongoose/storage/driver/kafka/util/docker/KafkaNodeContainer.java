@@ -15,7 +15,7 @@ implements Closeable {
 
         public static final int PORT = 9090;
         private static final Logger LOG = Logger.getLogger(KafkaNodeContainer.class.getSimpleName());
-        private static final String IMAGE_NAME = "kafka/kafka:latest";
+        private static final String IMAGE_NAME = "jplock/zookeeper:latest";
         private static final DockerClient DOCKER_CLIENT = DockerClientBuilder.getInstance().build();
 
         private static String CONTAINER_ID = null;
@@ -34,7 +34,7 @@ implements Closeable {
             final CreateContainerResponse container = DOCKER_CLIENT
                     .createContainerCmd(IMAGE_NAME)
                     .withCmd("standalone")
-                    .withName("kafka_node")
+                    .withName("zookeeper_node")
                     .withNetworkMode("host")//--network host
                     .withAttachStderr(true)
                     .withAttachStdout(true)
