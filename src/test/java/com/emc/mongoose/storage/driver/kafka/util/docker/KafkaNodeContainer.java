@@ -13,11 +13,9 @@ import java.util.logging.Logger;
 public class KafkaNodeContainer
 implements Closeable {
 
-        public static final int PORT = 9080;
         private static final Logger LOG = Logger.getLogger(KafkaNodeContainer.class.getSimpleName());
         private static final String IMAGE_NAME = "ches/kafka:latest";
         private static final DockerClient DOCKER_CLIENT = DockerClientBuilder.getInstance().build();
-
         private static String CONTAINER_ID = null;
 
 	public KafkaNodeContainer()
@@ -33,17 +31,15 @@ implements Closeable {
 
             final CreateContainerResponse container = DOCKER_CLIENT
                     .createContainerCmd(IMAGE_NAME)
-                    .withCmd("standalone")
-                    .withName("kafka_node")
-                    .withNetworkMode("host")//--network host
+                    .withName("kafka")
+                    .withNetworkMode("kafka-net")//--network kafka-net
+                    .withEnv("ZOOKEEPER_IP=zookeeper")
                     .withAttachStderr(true)
                     .withAttachStdout(true)
                     .exec();
             CONTAINER_ID = container.getId();
             LOG.info("docker start " + CONTAINER_ID + "...");
             DOCKER_CLIENT.startContainerCmd(CONTAINER_ID).exec();
-            TimeUnit.SECONDS.sleep(30);
-
         }
 
         public final void close() {
