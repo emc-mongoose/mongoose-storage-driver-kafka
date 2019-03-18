@@ -15,7 +15,7 @@ public class ZookeeperNodeContainer implements Closeable {
   private static final String IMAGE_NAME = "zookeeper:3.4";
   private static final DockerClient DOCKER_CLIENT = DockerClientBuilder.getInstance().build();
   private static String NETWORK_ID = null;
-  private static String CONTAINER_ID = null;
+  private static String ZOOKEEPER_CONTAINER_ID = null;
 
   public ZookeeperNodeContainer() throws Exception {
     try {
@@ -33,22 +33,26 @@ public class ZookeeperNodeContainer implements Closeable {
         DOCKER_CLIENT
             .createContainerCmd(IMAGE_NAME)
             .withName("zookeeper")
-            .withNetworkMode("kafka-net") // --network kafka-net
+            .withNetworkMode("host") // --network kafka-net
             .withAttachStderr(true)
             .withAttachStdout(true)
             .exec();
-    CONTAINER_ID = container.getId();
-    LOG.info("docker start " + CONTAINER_ID + "...");
-    DOCKER_CLIENT.startContainerCmd(CONTAINER_ID).exec();
+    ZOOKEEPER_CONTAINER_ID = container.getId();
+    LOG.info("docker start " + ZOOKEEPER_CONTAINER_ID + "...");
+    DOCKER_CLIENT.startContainerCmd(ZOOKEEPER_CONTAINER_ID).exec();
+  }
+
+  public static String getContainerId() {
+    return ZOOKEEPER_CONTAINER_ID;
   }
 
   public final void close() {
-    if (CONTAINER_ID != null) {
-      LOG.info("docker kill " + CONTAINER_ID + "...");
-      DOCKER_CLIENT.killContainerCmd(CONTAINER_ID).exec();
-      LOG.info("docker rm " + CONTAINER_ID + "...");
-      DOCKER_CLIENT.removeContainerCmd(CONTAINER_ID).exec();
-      CONTAINER_ID = null;
+    if (ZOOKEEPER_CONTAINER_ID != null) {
+      LOG.info("docker kill " + ZOOKEEPER_CONTAINER_ID + "...");
+      DOCKER_CLIENT.killContainerCmd(ZOOKEEPER_CONTAINER_ID).exec();
+      LOG.info("docker rm " + ZOOKEEPER_CONTAINER_ID + "...");
+      DOCKER_CLIENT.removeContainerCmd(ZOOKEEPER_CONTAINER_ID).exec();
+      ZOOKEEPER_CONTAINER_ID = null;
     }
     if (NETWORK_ID != null) {
       LOG.info("docker network rm " + NETWORK_ID + "...");
