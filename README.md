@@ -19,7 +19,7 @@ Kafka storage driver for Mongoose
 
 | Kafka | Mongoose |
 |---------|----------|
-| Record | *Date Item* |
+| Record | *Data Item* |
 | Topic | *Path Item* |
 | Partition | N/A |
 ## Record Operations
@@ -27,18 +27,18 @@ Kafka storage driver for Mongoose
 Mongoose should perform the load operations on the *records* when the configuration option `item-type` is set to `data`.
 
 ### Create
-`ProducerApi` has a `KafkaProducer` class with function  [send()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/producer/KafkaProducer.html#send-org.apache.kafka.clients.producer.ProducerRecord-), which can send a record to topic.
+`ProducerApi` has a `KafkaProducer` class with function  [send()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/producer/KafkaProducer.html#send-org.apache.kafka.clients.producer.ProducerRecord-org.apache.kafka.clients.producer.Callback-), which can send a record to topic.
 * Steps:
 
 ### Read
-`ConsumerApi` has a `KafkaConsumer` class, provided with function [poll()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/producer/KafkaProducer.html#send-org.apache.kafka.clients.producer.ProducerRecord-). According to Kafka documentation, on each poll Consumer  begins to consume records from last offset.
+`ConsumerApi` has a `KafkaConsumer` class, provided with function [poll()](https://kafka.apache.org/10/javadoc/org/apache/kafka/clients/consumer/Consumer.html#poll-long-). According to Kafka documentation, on each poll Consumer  begins to consume records from last offset.
 * Steps:
 
 ### Update
 Not supported. 
 
 ### Delete
-Not supported.
+deleteRecords()[http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/admin/AdminClient.html#deleteRecords-java.util.Map-org.apache.kafka.clients.admin.DeleteRecordsOptions-] function from AdminClient(AdminClient API) class, deletes all records before the one with giving offset.
 
 ### List
 Not supported.
@@ -52,7 +52,7 @@ Apache Kafka has `AdminClient Api`, which provides function for managing and ins
 * Steps:
 
 ### Read
-Not supported
+Read all records at once.
 ### Update
 Not supported
 
