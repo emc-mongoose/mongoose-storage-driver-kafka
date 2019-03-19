@@ -14,6 +14,7 @@ public class KafkaNodeContainer implements Closeable {
   private static final String IMAGE_NAME = "ches/kafka:latest";
   private static final DockerClient DOCKER_CLIENT = DockerClientBuilder.getInstance().build();
   private static ZookeeperNodeContainer ZOOKEEPER_NODE_CONTAINER;
+
   private static String KAFKA_CONTAINER_ID = null;
 
   public KafkaNodeContainer() throws Exception {
@@ -40,7 +41,6 @@ public class KafkaNodeContainer implements Closeable {
   }
 
   public final void close() {
-    ZOOKEEPER_NODE_CONTAINER.close();
     if (KAFKA_CONTAINER_ID != null) {
       LOG.info("docker kill " + KAFKA_CONTAINER_ID + "...");
       DOCKER_CLIENT.killContainerCmd(KAFKA_CONTAINER_ID).exec();
@@ -48,5 +48,6 @@ public class KafkaNodeContainer implements Closeable {
       DOCKER_CLIENT.removeContainerCmd(KAFKA_CONTAINER_ID).exec();
       KAFKA_CONTAINER_ID = null;
     }
+    ZOOKEEPER_NODE_CONTAINER.close();
   }
 }
