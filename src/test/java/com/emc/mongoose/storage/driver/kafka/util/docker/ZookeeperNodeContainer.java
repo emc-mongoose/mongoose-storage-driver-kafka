@@ -33,7 +33,7 @@ public class ZookeeperNodeContainer implements Closeable {
         DOCKER_CLIENT
             .createContainerCmd(IMAGE_NAME)
             .withName("zookeeper")
-            .withNetworkMode("host") // --network kafka-net
+            .withNetworkMode("kafka-net") // --network kafka-net
             .withAttachStderr(true)
             .withAttachStdout(true)
             .exec();
