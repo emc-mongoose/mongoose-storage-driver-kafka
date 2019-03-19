@@ -38,7 +38,7 @@ Mongoose should perform the load operations on the *records* when the configurat
 Not supported. 
 
 ### Delete
-deleteRecords()[http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/admin/AdminClient.html#deleteRecords-java.util.Map-org.apache.kafka.clients.admin.DeleteRecordsOptions-] function from AdminClient(AdminClient API) class, deletes all records before the one with giving offset.
+[deleteRecords()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/admin/AdminClient.html#deleteRecords-java.util.Map-org.apache.kafka.clients.admin.DeleteRecordsOptions-) function from AdminClient(AdminClient API) class, deletes all records before the one with giving offset.
 
 ### List
 Not supported.
