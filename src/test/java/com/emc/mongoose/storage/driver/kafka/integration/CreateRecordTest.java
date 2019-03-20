@@ -11,7 +11,6 @@ public class CreateRecordTest {
 
   private static KafkaNodeContainer KAFKA_NODE_CONTAINER;
   private MockProducer<String, String> mockProducer;
-  // private AdminClient adminClient;
   private static final int NUMBER_OF_ELEMENTS = 500000;
 
   @BeforeClass
@@ -27,15 +26,10 @@ public class CreateRecordTest {
   public void setup() {
     final StringSerializer stringSerializer = new StringSerializer();
     mockProducer = new MockProducer<>(true, stringSerializer, stringSerializer);
-    // final Properties properties = new Properties();
-    // properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:9092");
-    // adminClient = AdminClient.create(properties);
   }
 
   @Test
   public void testCreateRecord() {
-    // final NewTopic newTopic =  new NewTopic("test_topic", 0, (short)1);
-    // adminClient.createTopics(Collections.singletonList(newTopic));
     final String data = new String(new char[NUMBER_OF_ELEMENTS]);
     final ProducerRecord<String, String> producerRecord =
         new ProducerRecord<>("topic", "key", data);
@@ -60,7 +54,6 @@ public class CreateRecordTest {
     if (mockProducer != null && !mockProducer.closed()) {
       mockProducer.close();
     }
-    // adminClient.close();
   }
 
   @AfterClass
