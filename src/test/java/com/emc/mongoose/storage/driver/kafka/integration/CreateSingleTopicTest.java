@@ -1,14 +1,13 @@
 package com.emc.mongoose.storage.driver.kafka.integration;
 
 import com.emc.mongoose.storage.driver.kafka.util.docker.KafkaNodeContainer;
+import java.util.Collections;
+import java.util.Properties;
 import org.apache.kafka.clients.admin.*;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import java.util.Collections;
-import java.util.Properties;
 
 public class CreateSingleTopicTest {
 
@@ -18,14 +17,19 @@ public class CreateSingleTopicTest {
 
   @Test
   public void createTopic() throws Exception {
-    adminClient.createTopics(Collections.singleton(new NewTopic("test-topic", 2, (short) 1)));
-    Assert.assertTrue("Topic with specified name \"test-topic\" wasn't created\n", adminClient.listTopics().names().get().contains("test-topic"));
+    CreateTopicsResult result =
+        adminClient.createTopics(Collections.singleton(new NewTopic("test-topic", 2, (short) 1)));
+    Assert.assertTrue(
+        "Topic with specified name \"test-topic\" wasn't created\n",
+        result.values().containsKey("test-topic"));
   }
 
   @BeforeClass
   public static void setupClass() throws Exception {
     KAFKA_NODE_CONTAINER = new KafkaNodeContainer();
-    properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA_NODE_CONTAINER.getContainerIp() + ":9092");
+    properties.put(
+        AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG,
+        KAFKA_NODE_CONTAINER.getContainerIp() + ":9092");
     adminClient = KafkaAdminClient.create(properties);
   }
 
