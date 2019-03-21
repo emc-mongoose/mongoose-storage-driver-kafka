@@ -2,6 +2,7 @@ package com.emc.mongoose.storage.driver.kafka.util.docker;
 
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
+import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.core.DockerClientBuilder;
 import com.github.dockerjava.core.command.PullImageResultCallback;
@@ -38,6 +39,11 @@ public class KafkaNodeContainer implements Closeable {
     KAFKA_CONTAINER_ID = container.getId();
     LOG.info("docker start " + KAFKA_CONTAINER_ID + "...");
     DOCKER_CLIENT.startContainerCmd(KAFKA_CONTAINER_ID).exec();
+  }
+
+  public final String getContainerIp() {
+    InspectContainerResponse response = DOCKER_CLIENT.inspectContainerCmd(KAFKA_CONTAINER_ID).exec();
+    return response.getNetworkSettings().getNetworks().get("kafka-net").getIpAddress();
   }
 
   public final void close() {
