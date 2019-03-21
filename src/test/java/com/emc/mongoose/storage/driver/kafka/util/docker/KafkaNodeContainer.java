@@ -4,11 +4,7 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.exception.NotFoundException;
-import com.github.dockerjava.api.model.ContainerConfig;
-import com.github.dockerjava.api.model.ExposedPort;
-import com.github.dockerjava.api.model.Volume;
 import com.github.dockerjava.core.DockerClientBuilder;
-import com.github.dockerjava.core.DockerClientConfig;
 import com.github.dockerjava.core.command.PullImageResultCallback;
 import java.io.Closeable;
 import java.util.logging.Logger;
@@ -43,8 +39,11 @@ public class KafkaNodeContainer implements Closeable {
     KAFKA_CONTAINER_ID = container.getId();
     LOG.info("docker start " + KAFKA_CONTAINER_ID + "...");
     DOCKER_CLIENT.startContainerCmd(KAFKA_CONTAINER_ID).exec();
-    InspectContainerResponse containerMetaInfo = DOCKER_CLIENT.inspectContainerCmd(KAFKA_CONTAINER_ID).exec();
-    ipAddress = containerMetaInfo.getNetworkSettings().getNetworks().get("kafka-net").getIpAddress() + ":9092";
+    InspectContainerResponse containerMetaInfo =
+        DOCKER_CLIENT.inspectContainerCmd(KAFKA_CONTAINER_ID).exec();
+    ipAddress =
+        containerMetaInfo.getNetworkSettings().getNetworks().get("kafka-net").getIpAddress()
+            + ":9092";
   }
 
   public final void close() {

@@ -1,81 +1,64 @@
 package com.emc.mongoose.storage.driver.kafka.integration;
 
+import static org.junit.Assert.assertTrue;
+
 import com.emc.mongoose.storage.driver.kafka.util.docker.KafkaNodeContainer;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Set;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.junit.*;
 
-import java.util.*;
-
-import static org.junit.Assert.assertTrue;
-
 public class KafkaTopicTest {
-    private static KafkaNodeContainer kafkaNodeContainer;
+  private static KafkaNodeContainer kafkaNodeContainer;
 
-    private final List<String> topicNames = Arrays.asList("test-topic-1","test-topic-2","test-topic-3");
+  private AdminClient adminClient;
 
-    private AdminClient adminClient;
+  @BeforeClass
+  public static void initClass() throws Exception {
+    kafkaNodeContainer = new KafkaNodeContainer();
+  }
 
-    private static Properties props;
+  @AfterClass
+  public static void shutDownClass() {
+    kafkaNodeContainer.close();
+  }
 
-    @BeforeClass
-    public static void initClass() throws Exception {
-        kafkaNodeContainer = new KafkaNodeContainer();
-        props = new Properties();
-        String ip = kafkaNodeContainer.getKafkaIp();
-        props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, ip);
-    }
+  @Before
+  public void initTest() {
+    String ip = kafkaNodeContainer.getKafkaIp();
+    adminClient =
+        AdminClient.create(
+            Collections.singletonMap(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, ip));
+  }
 
-    @AfterClass
-    public static void shutDownClass(){
-        kafkaNodeContainer.close();
-    }
+  @After
+  public void shutDownTest() {
+    adminClient.close();
+  }
 
-    @Before
-    public void initTest(){
-        adminClient = AdminClient.create(props);
-    }
+  @Test
+  public void createSingleTopicTest() throws Exception {
+    adminClient
+        .createTopics(Collections.singleton(new NewTopic("test-topic", 1, (short) 1)))
+        .all()
+        .get();
+    Set<String> topics = adminClient.listTopics().names().get();
+    assertTrue("Topic \"test-topic\" is not created", topics.contains("test-topic"));
+  }
 
-    @After
-    public void shutDownTest(){
-        adminClient.close();
-    }
-
-    @Test
-    public void createSingleTopicTest() throws Exception {
-        adminClient.createTopics(createListNewTopicsFromNames(Collections.singletonList("test-topic")))
-                .all().get();
-        Set<String> topics = adminClient.listTopics().names().get();
-        assertTrue("Topic \"test-topic\" is not created", topics.contains("test-topic"));
-    }
-
-
-    //to run this test should be enabled "delete.topic.enable=true" in kafka broker configuration
-    /*@Test
-    public void deleteTopicTest() throws Exception{
-        adminClient.createTopics(createListNewTopicsFromNames(Collections.singletonList("test-topic"))).all().get();
-        Map<String, KafkaFuture<Void>> deletedTopics = adminClient.deleteTopics(Collections.singleton("test-topic")).values();
-        assertEquals(deletedTopics.size(),1);
-        assertTrue(deletedTopics.containsKey("test-topic"));
-        deletedTopics.get("test-topic").get(1000, TimeUnit.MICROSECONDS);
-    }*/
-
-    @Test
-    public void listTopicsTest() throws Exception{
-        adminClient.createTopics(createListNewTopicsFromNames(topicNames));
-        Set<String> topics = adminClient.listTopics().names().get();
-        for (String topicName : topicNames) {
-            assertTrue(topics.contains(topicName));
-        }
-    }
-
-    private List<NewTopic> createListNewTopicsFromNames(List<String> names){
-        List<NewTopic> topics = new ArrayList<>();
-        for (String name : names) {
-            topics.add(new NewTopic(name,1,(short) 1));
-        }
-        return topics;
-    }
-
+  @Test
+  public void listTopicsTest() throws Exception {
+    adminClient.createTopics(
+        Arrays.asList(
+            new NewTopic("test-topic-1", 1, (short) 1),
+            new NewTopic("test-topic-2", 1, (short) 1),
+            new NewTopic("test-topic-3", 1, (short) 1)));
+    Set<String> topics = adminClient.listTopics().names().get();
+    assertTrue("topic \"test-topic-1\" is not created", topics.contains("test-topic-1"));
+    assertTrue("topic \"test-topic-2\" is not created", topics.contains("test-topic-2"));
+    assertTrue("topic \"test-topic-3\" is not created", topics.contains("test-topic-3"));
+  }
 }
