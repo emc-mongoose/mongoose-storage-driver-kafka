@@ -15,6 +15,7 @@ public class KafkaNodeContainer implements Closeable {
   private static final String IMAGE_NAME = "ches/kafka:latest";
   private static final DockerClient DOCKER_CLIENT = DockerClientBuilder.getInstance().build();
   private static ZookeeperNodeContainer ZOOKEEPER_NODE_CONTAINER;
+
   private static String KAFKA_CONTAINER_ID = null;
 
   private static String ipAddress = "localhost:9092";
