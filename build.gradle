@@ -73,6 +73,8 @@ dependencies {
 
     compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.1.1'
     compile group: 'javax.activation', name: 'activation', version: '1.1'
+    compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.1.1'
+
     compileOnly(
         "com.github.emc-mongoose:mongoose:${depVersion.mongoose}",
         "com.github.emc-mongoose:mongoose-storage-driver-coop:${depVersion.mongoose}",

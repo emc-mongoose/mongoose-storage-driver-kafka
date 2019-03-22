@@ -18,6 +18,8 @@ public class KafkaNodeContainer implements Closeable {
 
   private static String KAFKA_CONTAINER_ID = null;
 
+  private static String ipAddress = "localhost:9092";
+
   public KafkaNodeContainer() throws Exception {
     try {
       DOCKER_CLIENT.inspectImageCmd(IMAGE_NAME).exec();
@@ -26,7 +28,6 @@ public class KafkaNodeContainer implements Closeable {
     }
 
     ZOOKEEPER_NODE_CONTAINER = new ZookeeperNodeContainer();
-
     final CreateContainerResponse container =
         DOCKER_CLIENT
             .createContainerCmd(IMAGE_NAME)
@@ -39,6 +40,11 @@ public class KafkaNodeContainer implements Closeable {
     KAFKA_CONTAINER_ID = container.getId();
     LOG.info("docker start " + KAFKA_CONTAINER_ID + "...");
     DOCKER_CLIENT.startContainerCmd(KAFKA_CONTAINER_ID).exec();
+    InspectContainerResponse containerMetaInfo =
+        DOCKER_CLIENT.inspectContainerCmd(KAFKA_CONTAINER_ID).exec();
+    ipAddress =
+        containerMetaInfo.getNetworkSettings().getNetworks().get("kafka-net").getIpAddress()
+            + ":9092";
   }
 
   public final String getContainerIp() {
@@ -55,5 +61,9 @@ public class KafkaNodeContainer implements Closeable {
       KAFKA_CONTAINER_ID = null;
     }
     ZOOKEEPER_NODE_CONTAINER.close();
+  }
+
+  public String getKafkaIp() {
+    return ipAddress;
   }
 }
