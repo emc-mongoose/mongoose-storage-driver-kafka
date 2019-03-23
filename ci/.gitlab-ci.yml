@@ -70,6 +70,7 @@ test_integration:
   variables:
     JAVA_HOME: "" # unset temporarily for the job services
   services:
+    - docker:dind
     - name: zookeeper:3.4
       alias: zookeeper
   script:
