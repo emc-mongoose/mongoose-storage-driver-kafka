@@ -67,6 +67,8 @@ test_unit:
 
 test_integration:
   stage: test
+  variables:
+    JAVA_HOME: ~ # unset temporarily for the job services
   services:
     - name: zookeeper:3.4
       alias: zookeeper
@@ -77,7 +79,7 @@ test_integration:
         - ./config/server.properties --override zookeeper.connect=zookeeper:2181
       alias: storage
   script:
-    - ./gradlew integrationTest
+    - JAVA_HOME=/opt/jdk-11.0.2+9 ./gradlew integrationTest
   after_script:
     - docker stop storage
     - docker rm storage
