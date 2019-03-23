@@ -1,6 +1,5 @@
 package com.emc.mongoose.storage.driver.kafka.integration;
 
-import com.emc.mongoose.storage.driver.kafka.util.docker.KafkaNodeContainer;
 import java.util.Collections;
 import java.util.concurrent.Future;
 import org.apache.kafka.clients.producer.MockProducer;
@@ -11,20 +10,10 @@ import org.junit.*;
 
 public class CreateRecordTest {
 
-  private static KafkaNodeContainer KAFKA_NODE_CONTAINER;
   private MockProducer<String, String> mockProducer;
   private static final int NUMBER_OF_ELEMENTS = 500000;
   private static final String TOPIC_NAME = "topic";
   private static final String KEY_NAME = "key";
-
-  @BeforeClass
-  public static void createContainers() {
-    try {
-      KAFKA_NODE_CONTAINER = new KafkaNodeContainer();
-    } catch (final Exception e) {
-      throw new AssertionError(e);
-    }
-  }
 
   @Before
   public void setup() {
@@ -56,10 +45,5 @@ public class CreateRecordTest {
     if (mockProducer != null && !mockProducer.closed()) {
       mockProducer.close();
     }
-  }
-
-  @AfterClass
-  public static void tearDownClass() {
-    KAFKA_NODE_CONTAINER.close();
   }
 }
