@@ -77,7 +77,8 @@ test_integration:
         - ./bin/kafka-server-start.sh
       command:
         - ./config/server.properties
-        - --override zookeeper.connect=zookeeper:2181
+        - --override
+        - zookeeper.connect=zookeeper:2181
       alias: storage
   script:
     - JAVA_HOME=/opt/jdk-11.0.2+9 ./gradlew integrationTest
