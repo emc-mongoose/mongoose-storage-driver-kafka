@@ -67,17 +67,12 @@ test_unit:
 
 test_integration:
   stage: test
-  variables:
-    JAVA_HOME: "" # unset temporarily for the job services
-  services:
-    - docker:dind
-    - name: zookeeper:3.4
-      alias: zookeeper
   script:
     - docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
-    - docker run --publish 9092 --entrypoint ./bin/kafka-server-start.sh solsson/kafka:2.1.1 ./config/server.properties --override zookeeper.connect=zookeeper:2181
-    - docker ps --no-trunc
-    - JAVA_HOME=/opt/jdk-11.0.2+9 ./gradlew integrationTest
+    - docker run -d --name zookeeper --network host zookeeper:3.4
+    - docker run -d --name storage --network host --entrypoint ./bin/kafka-server-start.sh solsson/kafka:2.1.1 ./config/server.properties --override zookeeper.connect=${SERVICE_HOST}:2181
+    - docker logs storage
+    - ./gradlew integrationTest
   after_script:
     - docker stop storage
     - docker rm storage
