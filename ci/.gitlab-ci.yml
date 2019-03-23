@@ -68,7 +68,7 @@ test_unit:
 test_integration:
   stage: test
   variables:
-    JAVA_HOME: ~ # unset temporarily for the job services
+    JAVA_HOME: "" # unset temporarily for the job services
   services:
     - name: zookeeper:3.4
       alias: zookeeper
