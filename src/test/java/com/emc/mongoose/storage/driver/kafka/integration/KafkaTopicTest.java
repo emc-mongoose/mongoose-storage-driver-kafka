@@ -1,6 +1,6 @@
 package com.emc.mongoose.storage.driver.kafka.integration;
 
-import com.emc.mongoose.storage.driver.kafka.util.docker.KafkaNodeContainer;
+import com.emc.mongoose.storage.driver.kafka.KafkaNode;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -11,7 +11,6 @@ import java.util.*;
 import static org.junit.Assert.assertTrue;
 
 public class KafkaTopicTest {
-    private static KafkaNodeContainer kafkaNodeContainer;
 
     private final List<String> topicNames = Arrays.asList("test-topic-1","test-topic-2","test-topic-3");
 
@@ -21,15 +20,9 @@ public class KafkaTopicTest {
 
     @BeforeClass
     public static void initClass() throws Exception {
-        kafkaNodeContainer = new KafkaNodeContainer();
         props = new Properties();
-        String ip = kafkaNodeContainer.getKafkaIp();
-        props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, ip);
-    }
-
-    @AfterClass
-    public static void shutDownClass(){
-        kafkaNodeContainer.close();
+        final var addrWithPort = KafkaNode.addr() + ":" + KafkaNode.PORT;
+        props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, addrWithPort);
     }
 
     @Before

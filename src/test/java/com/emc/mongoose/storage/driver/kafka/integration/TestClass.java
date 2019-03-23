@@ -2,6 +2,7 @@ package com.emc.mongoose.storage.driver.kafka.integration;
 
 import com.emc.mongoose.storage.driver.kafka.util.docker.KafkaNodeContainer;
 import org.junit.AfterClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class TestClass {
@@ -10,7 +11,7 @@ public class TestClass {
 
   public TestClass() throws Exception {}
 
-  @Test
+  @Test @Ignore
   public void createContainers() throws Exception {
     try {
       KAFKA_NODE_CONTAINER = new KafkaNodeContainer();
