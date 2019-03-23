@@ -33,6 +33,7 @@ ext {
 		confuseIoYaml            : "1.0.0",
 		disruptor                : "3.4.2",
 		dockerJava               : "3.0.14",
+		javaxActivation			 : "1.1",
 		kafka					 : "2.1.1",
 		log4j                    : "2.8.2",
 		mongooseBase             : "4.2.1",
@@ -77,6 +78,7 @@ dependencies {
 	)
 	provided(
 		"org.apache.kafka:kafka-clients:${depVersion.kafka}",
+		"javax.activation:activation:${depVersion.javaxActivation}",
 	)
 	testCompile(
 		"junit:junit:[4,)",
