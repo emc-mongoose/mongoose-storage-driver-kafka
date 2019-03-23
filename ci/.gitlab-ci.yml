@@ -72,15 +72,10 @@ test_integration:
   services:
     - name: zookeeper:3.4
       alias: zookeeper
-    - name: solsson/kafka:2.1.1
-      entrypoint:
-        - ./bin/kafka-server-start.sh
-      command:
-        - ./config/server.properties
-        - --override
-        - zookeeper.connect=zookeeper:2181
-      alias: storage
   script:
+    - docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
+    - docker run --publish 9092 --entrypoint ./bin/kafka-server-start.sh solsson/kafka:2.1.1 ./config/server.properties --override zookeeper.connect=zookeeper:2181
+    - docker ps --no-trunc
     - JAVA_HOME=/opt/jdk-11.0.2+9 ./gradlew integrationTest
   after_script:
     - docker stop storage
