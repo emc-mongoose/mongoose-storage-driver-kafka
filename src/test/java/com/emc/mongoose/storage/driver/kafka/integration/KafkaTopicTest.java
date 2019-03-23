@@ -12,9 +12,7 @@ import static org.junit.Assert.assertTrue;
 
 public class KafkaTopicTest {
 
-    private final List<String> topicNames = Arrays.asList("test-topic-1","test-topic-2","test-topic-3");
-
-    private AdminClient adminClient;
+  private AdminClient adminClient;
 
     private static Properties props;
 
@@ -35,40 +33,26 @@ public class KafkaTopicTest {
         adminClient.close();
     }
 
-    @Test
-    public void createSingleTopicTest() throws Exception {
-        adminClient.createTopics(createListNewTopicsFromNames(Collections.singletonList("test-topic")))
-                .all().get();
-        Set<String> topics = adminClient.listTopics().names().get();
-        assertTrue("Topic \"test-topic\" is not created", topics.contains("test-topic"));
-    }
+  @Test
+  public void createSingleTopicTest() throws Exception {
+    adminClient
+        .createTopics(Collections.singleton(new NewTopic("test-topic", 1, (short) 1)))
+        .all()
+        .get();
+    Set<String> topics = adminClient.listTopics().names().get();
+    assertTrue("Topic \"test-topic\" is not created", topics.contains("test-topic"));
+  }
 
-
-    //to run this test should be enabled "delete.topic.enable=true" in kafka broker configuration
-    /*@Test
-    public void deleteTopicTest() throws Exception{
-        adminClient.createTopics(createListNewTopicsFromNames(Collections.singletonList("test-topic"))).all().get();
-        Map<String, KafkaFuture<Void>> deletedTopics = adminClient.deleteTopics(Collections.singleton("test-topic")).values();
-        assertEquals(deletedTopics.size(),1);
-        assertTrue(deletedTopics.containsKey("test-topic"));
-        deletedTopics.get("test-topic").get(1000, TimeUnit.MICROSECONDS);
-    }*/
-
-    @Test
-    public void listTopicsTest() throws Exception{
-        adminClient.createTopics(createListNewTopicsFromNames(topicNames));
-        Set<String> topics = adminClient.listTopics().names().get();
-        for (String topicName : topicNames) {
-            assertTrue(topics.contains(topicName));
-        }
-    }
-
-    private List<NewTopic> createListNewTopicsFromNames(List<String> names){
-        List<NewTopic> topics = new ArrayList<>();
-        for (String name : names) {
-            topics.add(new NewTopic(name,1,(short) 1));
-        }
-        return topics;
-    }
-
+  @Test
+  public void listTopicsTest() throws Exception {
+    adminClient.createTopics(
+        Arrays.asList(
+            new NewTopic("test-topic-1", 1, (short) 1),
+            new NewTopic("test-topic-2", 1, (short) 1),
+            new NewTopic("test-topic-3", 1, (short) 1)));
+    Set<String> topics = adminClient.listTopics().names().get();
+    assertTrue("topic \"test-topic-1\" is not created", topics.contains("test-topic-1"));
+    assertTrue("topic \"test-topic-2\" is not created", topics.contains("test-topic-2"));
+    assertTrue("topic \"test-topic-3\" is not created", topics.contains("test-topic-3"));
+  }
 }

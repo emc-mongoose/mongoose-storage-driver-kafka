@@ -4,11 +4,7 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.exception.NotFoundException;
-import com.github.dockerjava.api.model.ContainerConfig;
-import com.github.dockerjava.api.model.ExposedPort;
-import com.github.dockerjava.api.model.Volume;
 import com.github.dockerjava.core.DockerClientBuilder;
-import com.github.dockerjava.core.DockerClientConfig;
 import com.github.dockerjava.core.command.PullImageResultCallback;
 import java.io.Closeable;
 import java.util.logging.Logger;
@@ -19,6 +15,7 @@ public class KafkaNodeContainer implements Closeable {
   private static final String IMAGE_NAME = "ches/kafka:latest";
   private static final DockerClient DOCKER_CLIENT = DockerClientBuilder.getInstance().build();
   private static ZookeeperNodeContainer ZOOKEEPER_NODE_CONTAINER;
+
   private static String KAFKA_CONTAINER_ID = null;
 
   private static String ipAddress = "localhost:9092";
@@ -43,8 +40,16 @@ public class KafkaNodeContainer implements Closeable {
     KAFKA_CONTAINER_ID = container.getId();
     LOG.info("docker start " + KAFKA_CONTAINER_ID + "...");
     DOCKER_CLIENT.startContainerCmd(KAFKA_CONTAINER_ID).exec();
-    InspectContainerResponse containerMetaInfo = DOCKER_CLIENT.inspectContainerCmd(KAFKA_CONTAINER_ID).exec();
-    ipAddress = containerMetaInfo.getNetworkSettings().getNetworks().get("kafka-net").getIpAddress() + ":9092";
+    InspectContainerResponse containerMetaInfo =
+        DOCKER_CLIENT.inspectContainerCmd(KAFKA_CONTAINER_ID).exec();
+    ipAddress =
+        containerMetaInfo.getNetworkSettings().getNetworks().get("kafka-net").getIpAddress()
+            + ":9092";
+  }
+
+  public final String getContainerIp() {
+    InspectContainerResponse response = DOCKER_CLIENT.inspectContainerCmd(KAFKA_CONTAINER_ID).exec();
+    return response.getNetworkSettings().getNetworks().get("kafka-net").getIpAddress();
   }
 
   public final void close() {
