@@ -69,15 +69,7 @@ test_integration:
   stage: test
   script:
     - docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
-    - docker run -d --name zookeeper --network host zookeeper:3.4
-    - docker run -d --name storage --network host --entrypoint ./bin/kafka-server-start.sh solsson/kafka:2.1.1 ./config/server.properties --override zookeeper.connect=${SERVICE_HOST}:2181
-    - docker logs storage
     - ./gradlew integrationTest
-  after_script:
-    - docker stop storage
-    - docker rm storage
-    - docker stop zookeeper
-    - docker rm zookeeper
   artifacts:
     paths:
       - build/reports/tests/integrationTest/*

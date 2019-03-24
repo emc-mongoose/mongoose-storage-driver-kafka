@@ -2,7 +2,7 @@ package com.emc.mongoose.storage.driver.kafka.integration;
 
 import static org.junit.Assert.assertTrue;
 
-import com.emc.mongoose.storage.driver.kafka.KafkaNode;
+import com.emc.mongoose.storage.driver.kafka.util.docker.KafkaNodeContainer;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -15,14 +15,21 @@ import org.junit.*;
 public class KafkaTopicTest {
 
   private AdminClient adminClient;
+  private static KafkaNodeContainer KAFKA_NODE_CONTAINER;
 
   private static Properties props;
 
   @BeforeClass
   public static void initClass() throws Exception {
+    KAFKA_NODE_CONTAINER = new KafkaNodeContainer();
     props = new Properties();
-    final var addrWithPort = KafkaNode.addr() + ":" + KafkaNode.PORT;
+    final var addrWithPort = KAFKA_NODE_CONTAINER.getContainerIp() + ":9092";
     props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, addrWithPort);
+  }
+
+  @AfterClass
+  public static void tearDownClass() {
+    KAFKA_NODE_CONTAINER.close();
   }
 
   @Before
