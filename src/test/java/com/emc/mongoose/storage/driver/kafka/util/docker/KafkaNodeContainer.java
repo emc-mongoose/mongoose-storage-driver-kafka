@@ -7,12 +7,13 @@ import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.core.DockerClientBuilder;
 import com.github.dockerjava.core.command.PullImageResultCallback;
 import java.io.Closeable;
+import java.util.Arrays;
 import java.util.logging.Logger;
 
 public class KafkaNodeContainer implements Closeable {
 
   private static final Logger LOG = Logger.getLogger(KafkaNodeContainer.class.getSimpleName());
-  private static final String IMAGE_NAME = "ches/kafka:latest";
+  private static final String IMAGE_NAME = "solsson/kafka:2.1.1";
   private static final DockerClient DOCKER_CLIENT = DockerClientBuilder.getInstance().build();
   private static ZookeeperNodeContainer ZOOKEEPER_NODE_CONTAINER;
 
@@ -33,7 +34,22 @@ public class KafkaNodeContainer implements Closeable {
             .createContainerCmd(IMAGE_NAME)
             .withName("kafka")
             .withNetworkMode("kafka-net") // --network kafka-net
-            .withEnv("ZOOKEEPER_IP=zookeeper")
+            .withEntrypoint("./bin/kafka-server-start.sh")
+            .withCmd(
+                Arrays.asList(
+                    "./config/server.properties",
+                    "--override",
+                    "zookeeper.connect=zookeeper:2181",
+                    "--override",
+                    "log.dirs=/var/lib/kafka/data/topics",
+                    "--override",
+                    "log.retention.hours=-1",
+                    "--override",
+                    "broker.id=0",
+                    "--override",
+                    "advertised.listener=PLAINTEXT://kafka-0:9092"))
+            // .withEnv("KAFKA_ADVERTISED_LISTENERS=LISTENER_BOB://kafka0:29092,LISTENER_FRED://localhost:9092")
+            // .withEnv("KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=LISTENER_BOB:PLAINTEXT,LISTENER_FRED:PLAINTEXT")
             .withAttachStderr(true)
             .withAttachStdout(true)
             .exec();
@@ -48,7 +64,8 @@ public class KafkaNodeContainer implements Closeable {
   }
 
   public final String getContainerIp() {
-    InspectContainerResponse response = DOCKER_CLIENT.inspectContainerCmd(KAFKA_CONTAINER_ID).exec();
+    InspectContainerResponse response =
+        DOCKER_CLIENT.inspectContainerCmd(KAFKA_CONTAINER_ID).exec();
     return response.getNetworkSettings().getNetworks().get("kafka-net").getIpAddress();
   }
 
