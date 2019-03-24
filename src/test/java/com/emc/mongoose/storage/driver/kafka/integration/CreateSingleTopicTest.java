@@ -3,7 +3,6 @@ package com.emc.mongoose.storage.driver.kafka.integration;
 import com.emc.mongoose.storage.driver.kafka.KafkaNode;
 import java.util.Collections;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import org.apache.kafka.clients.admin.*;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -21,7 +20,6 @@ public class CreateSingleTopicTest {
     final var results = adminClient.createTopics(topicsToCreate).values();
     Assert.assertTrue(
         "Topic with specified name \"" + topic + "\" wasn't created\n", results.containsKey(topic));
-    results.get(topic).get(60, TimeUnit.SECONDS);
   }
 
   @BeforeClass

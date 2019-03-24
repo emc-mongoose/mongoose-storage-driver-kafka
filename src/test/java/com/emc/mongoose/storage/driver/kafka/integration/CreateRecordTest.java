@@ -26,7 +26,7 @@ public class CreateRecordTest {
     final String data = new String(new char[NUMBER_OF_ELEMENTS]);
     final ProducerRecord<String, String> producerRecord =
         new ProducerRecord<>(TOPIC_NAME, KEY_NAME, data);
-    final Future<RecordMetadata> recordMetadata =
+    final Future<RecordMetadata> recordMetadataFuture =
         mockProducer.send(
             producerRecord,
             (recordMetaData, exception) -> System.out.println("The record was sent"));
@@ -34,10 +34,11 @@ public class CreateRecordTest {
         "Record must be in history",
         Collections.singletonList(producerRecord),
         mockProducer.history());
+    final var recordMetadata = recordMetadataFuture.get();
+    Assert.assertTrue("Send must be done", recordMetadataFuture.isDone());
     Assert.assertEquals(
-        "Name of the topic must be " + TOPIC_NAME, TOPIC_NAME, recordMetadata.get().topic());
-    Assert.assertEquals("Offset must be 0", 0, recordMetadata.get().offset());
-    Assert.assertTrue("Send must be done", recordMetadata.isDone());
+        "Name of the topic must be " + TOPIC_NAME, TOPIC_NAME, recordMetadata.topic());
+    Assert.assertEquals("Offset must be 0", 0, recordMetadata.offset());
   }
 
   @After
