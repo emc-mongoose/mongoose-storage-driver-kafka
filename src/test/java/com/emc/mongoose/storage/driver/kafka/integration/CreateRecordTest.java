@@ -12,8 +12,8 @@ public class CreateRecordTest {
 
   private MockProducer<String, String> mockProducer;
   private static final int NUMBER_OF_ELEMENTS = 500000;
-  private static final String TOPIC_NAME = "topic";
-  private static final String KEY_NAME = "key";
+  private static final String TOPIC_NAME = "topic" + CreateRecordTest.class.getSimpleName();
+  private static final String KEY_NAME = "key" + CreateRecordTest.class.getSimpleName();
 
   @Before
   public void setup() {

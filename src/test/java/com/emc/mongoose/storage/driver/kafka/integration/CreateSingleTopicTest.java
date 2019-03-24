@@ -15,11 +15,13 @@ public class CreateSingleTopicTest {
 
   @Test
   public void createTopic() throws Exception {
-    CreateTopicsResult result =
-        adminClient.createTopics(Collections.singleton(new NewTopic("test-topic", 2, (short) 1)));
+    final var topic = getClass().getSimpleName();
+    final var topicsToCreate = Collections.singleton(new NewTopic(topic, 2, (short) 1));
+    final var options = new CreateTopicsOptions().timeoutMs(60_000);
+    CreateTopicsResult result = adminClient.createTopics(topicsToCreate, options);
     Assert.assertTrue(
-        "Topic with specified name \"test-topic\" wasn't created\n",
-        result.values().containsKey("test-topic"));
+        "Topic with specified name \"" + topic + "\" wasn't created\n",
+        result.values().containsKey(topic));
   }
 
   @BeforeClass
