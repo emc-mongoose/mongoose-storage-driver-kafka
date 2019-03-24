@@ -36,7 +36,7 @@ public class KafkaTopicTest {
   @Test
   public void createSingleTopicTest() throws Exception {
     final var topicsToCreate = Collections.singleton(new NewTopic("test-topic-0", 1, (short) 1));
-    final var opts = new CreateTopicsOptions().timeoutMs(60_000);
+    final var opts = new CreateTopicsOptions().timeoutMs(1_000_000);
     adminClient.createTopics(topicsToCreate, opts).all().get();
     Set<String> topics = adminClient.listTopics().names().get();
     assertTrue("Topic \"test-topic-0\" is not created", topics.contains("test-topic-0"));
