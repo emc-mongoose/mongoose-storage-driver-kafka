@@ -50,7 +50,7 @@ public class KafkaTopicTest {
   }
 
   @Test
-  public void listTopicsTest() throws Exception {
+  public void listTopic1sTest() throws Exception {
     adminClient.createTopics(
         Arrays.asList(
             new NewTopic("test-topic-1", 1, (short) 1),

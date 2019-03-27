@@ -4,6 +4,7 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.exception.NotFoundException;
+import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.core.DockerClientBuilder;
 import com.github.dockerjava.core.command.PullImageResultCallback;
 import java.io.Closeable;
@@ -33,13 +34,14 @@ public class KafkaNodeContainer implements Closeable {
         DOCKER_CLIENT
             .createContainerCmd(IMAGE_NAME)
             .withName("kafka")
-            .withNetworkMode("kafka-net") // --network kafka-net
+            .withNetworkMode("host") // --network kafka-net
+            .withExposedPorts(ExposedPort.tcp(9010), ExposedPort.tcp(9092))
             .withEntrypoint("./bin/kafka-server-start.sh")
             .withCmd(
                 Arrays.asList(
                     "./config/server.properties",
                     "--override",
-                    "zookeeper.connect=zookeeper:2181",
+                    "zookeeper.connect=localhost:2181",
                     "--override",
                     "log.dirs=/var/lib/kafka/data/topics",
                     "--override",
@@ -48,8 +50,6 @@ public class KafkaNodeContainer implements Closeable {
                     "broker.id=0",
                     "--override",
                     "advertised.listener=PLAINTEXT://kafka-0:9092"))
-            // .withEnv("KAFKA_ADVERTISED_LISTENERS=LISTENER_BOB://kafka0:29092,LISTENER_FRED://localhost:9092")
-            // .withEnv("KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=LISTENER_BOB:PLAINTEXT,LISTENER_FRED:PLAINTEXT")
             .withAttachStderr(true)
             .withAttachStdout(true)
             .exec();
@@ -58,9 +58,7 @@ public class KafkaNodeContainer implements Closeable {
     DOCKER_CLIENT.startContainerCmd(KAFKA_CONTAINER_ID).exec();
     InspectContainerResponse containerMetaInfo =
         DOCKER_CLIENT.inspectContainerCmd(KAFKA_CONTAINER_ID).exec();
-    ipAddress =
-        containerMetaInfo.getNetworkSettings().getNetworks().get("kafka-net").getIpAddress()
-            + ":9092";
+    ipAddress = "localhost:9092";
   }
 
   public final String getContainerIp() {
