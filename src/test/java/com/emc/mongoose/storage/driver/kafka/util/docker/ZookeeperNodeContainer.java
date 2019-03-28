@@ -2,7 +2,6 @@ package com.emc.mongoose.storage.driver.kafka.util.docker;
 
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
-import com.github.dockerjava.api.command.CreateNetworkResponse;
 import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.core.DockerClientBuilder;
 import com.github.dockerjava.core.command.PullImageResultCallback;
@@ -14,7 +13,7 @@ public class ZookeeperNodeContainer implements Closeable {
   private static final Logger LOG = Logger.getLogger(ZookeeperNodeContainer.class.getSimpleName());
   private static final String IMAGE_NAME = "zookeeper:3.4";
   private static final DockerClient DOCKER_CLIENT = DockerClientBuilder.getInstance().build();
-  private static String NETWORK_ID = null;
+  //  private static String NETWORK_ID = null;
   private static String ZOOKEEPER_CONTAINER_ID = null;
 
   public ZookeeperNodeContainer() throws Exception {
@@ -24,10 +23,10 @@ public class ZookeeperNodeContainer implements Closeable {
       DOCKER_CLIENT.pullImageCmd(IMAGE_NAME).exec(new PullImageResultCallback()).awaitCompletion();
     }
 
-    final CreateNetworkResponse network =
-        DOCKER_CLIENT.createNetworkCmd().withName("kafka-net").exec();
-    NETWORK_ID = network.getId();
-    LOG.info("docker network create " + NETWORK_ID + "...");
+    //    final CreateNetworkResponse network =
+    //        DOCKER_CLIENT.createNetworkCmd().withName("kafka-net").exec();
+    //    NETWORK_ID = network.getId();
+    //    LOG.info("docker network create " + NETWORK_ID + "...");
 
     final CreateContainerResponse container =
         DOCKER_CLIENT
@@ -54,9 +53,9 @@ public class ZookeeperNodeContainer implements Closeable {
       DOCKER_CLIENT.removeContainerCmd(ZOOKEEPER_CONTAINER_ID).exec();
       ZOOKEEPER_CONTAINER_ID = null;
     }
-    if (NETWORK_ID != null) {
-      LOG.info("docker network rm " + NETWORK_ID + "...");
-      DOCKER_CLIENT.removeNetworkCmd(NETWORK_ID).exec();
-    }
+    //    if (NETWORK_ID != null) {
+    //      LOG.info("docker network rm " + NETWORK_ID + "...");
+    //      DOCKER_CLIENT.removeNetworkCmd(NETWORK_ID).exec();
+    //    }
   }
 }
