@@ -64,7 +64,7 @@ public class KafkaNodeContainer implements Closeable {
   public final String getContainerIp() {
     InspectContainerResponse response =
         DOCKER_CLIENT.inspectContainerCmd(KAFKA_CONTAINER_ID).exec();
-    return response.getNetworkSettings().getNetworks().get("kafka-net").getIpAddress();
+    return response.getNetworkSettings().getNetworks().get("host").getIpAddress();
   }
 
   public final void close() {

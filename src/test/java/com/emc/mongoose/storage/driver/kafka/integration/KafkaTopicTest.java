@@ -28,7 +28,7 @@ public class KafkaTopicTest {
 
   @Before
   public void initTest() {
-    String ip = kafkaNodeContainer.getKafkaIp();
+    final String ip = kafkaNodeContainer.getKafkaIp();
     adminClient =
         AdminClient.create(
             Collections.singletonMap(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, ip));
@@ -45,7 +45,7 @@ public class KafkaTopicTest {
         .createTopics(Collections.singleton(new NewTopic("test-topic", 1, (short) 1)))
         .all()
         .get();
-    Set<String> topics = adminClient.listTopics().names().get();
+    final Set<String> topics = adminClient.listTopics().names().get();
     assertTrue("Topic \"test-topic\" is not created", topics.contains("test-topic"));
   }
 
@@ -56,7 +56,7 @@ public class KafkaTopicTest {
             new NewTopic("test-topic-1", 1, (short) 1),
             new NewTopic("test-topic-2", 1, (short) 1),
             new NewTopic("test-topic-3", 1, (short) 1)));
-    Set<String> topics = adminClient.listTopics().names().get();
+    final Set<String> topics = adminClient.listTopics().names().get();
     assertTrue("topic \"test-topic-1\" is not created", topics.contains("test-topic-1"));
     assertTrue("topic \"test-topic-2\" is not created", topics.contains("test-topic-2"));
     assertTrue("topic \"test-topic-3\" is not created", topics.contains("test-topic-3"));

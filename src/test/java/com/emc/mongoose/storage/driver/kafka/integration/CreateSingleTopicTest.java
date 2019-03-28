@@ -17,7 +17,7 @@ public class CreateSingleTopicTest {
 
   @Test
   public void createTopic() throws Exception {
-    CreateTopicsResult result =
+    final CreateTopicsResult result =
         adminClient.createTopics(Collections.singleton(new NewTopic("test-topic", 2, (short) 1)));
     Assert.assertTrue(
         "Topic with specified name \"test-topic\" wasn't created\n",
