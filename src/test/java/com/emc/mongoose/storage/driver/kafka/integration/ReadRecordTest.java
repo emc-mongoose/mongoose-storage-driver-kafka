@@ -3,20 +3,21 @@ package com.emc.mongoose.storage.driver.kafka.integration;
 import com.emc.mongoose.storage.driver.kafka.util.docker.KafkaNodeContainer;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.HashMap;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.MockConsumer;
-import org.apache.kafka.clients.consumer.OffsetResetStrategy;
-import org.apache.kafka.common.TopicPartition;
+import java.util.Properties;
+import org.apache.kafka.clients.admin.*;
+import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.clients.producer.*;
 import org.junit.*;
 
 public class ReadRecordTest {
   private static KafkaNodeContainer kafkaNodeContainer;
-  private MockConsumer<String, String> mockConsumer;
-  private static final String TOPIC_NAME = "test-topic";
-  private static final String KEY_NAME = "key";
+  private Consumer<String, String> consumer;
+  private Producer<String, String> producer;
+  private static final String TOPIC_NAME = "topic" + ReadRecordTest.class.getSimpleName();
+  private static final String KEY_NAME = "key" + ReadRecordTest.class.getSimpleName();
   private static final String DATA = "test-record";
   private static final Duration TIMEOUT = Duration.ZERO;
+  private static Properties props;
 
   @BeforeClass
   public static void initContainer() {
@@ -34,32 +35,44 @@ public class ReadRecordTest {
 
   @Before
   public void initMockConsumer() {
-    mockConsumer = new MockConsumer<String, String>(OffsetResetStrategy.EARLIEST);
+    props = new Properties();
+    props.put(
+        AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaNodeContainer.getContainerIp() + ":9092");
+    props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+    props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+
+    props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+    props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+    consumer = new KafkaConsumer<>(props);
+    producer = new KafkaProducer<>(props);
   }
 
   @After
   public void closeMockConsumer() {
-    if (mockConsumer != null && !mockConsumer.closed()) {
-      mockConsumer.close();
+    if (consumer != null) {
+      consumer.close();
+    }
+    if (producer != null) {
+      producer.close();
     }
   }
 
   @Test
   public void readRecordTest() throws Exception {
-    TopicPartition topicPartition = new TopicPartition(TOPIC_NAME, 0);
-    mockConsumer.assign(Arrays.asList(topicPartition));
+    consumer.subscribe(Arrays.asList(TOPIC_NAME));
+    ProducerRecord<String, String> producerRecord =
+        new ProducerRecord<>(TOPIC_NAME, KEY_NAME, DATA);
+    producer.send(producerRecord);
 
-    HashMap<TopicPartition, Long> beginningOffsets = new HashMap<>();
-    beginningOffsets.put(new TopicPartition(TOPIC_NAME, 0), 0L);
-    mockConsumer.updateBeginningOffsets(beginningOffsets);
-
-    ConsumerRecord<String, String> record =
-        new ConsumerRecord<String, String>(TOPIC_NAME, 0, 0L, KEY_NAME, DATA);
-    mockConsumer.addRecord(record);
-
-    Assert.assertEquals(
-        "Record must be " + record.toString(),
-        record,
-        mockConsumer.poll(TIMEOUT).records(topicPartition).get(0));
+    ConsumerRecords<String, String> recordsRead = consumer.poll(TIMEOUT);
+    for (ConsumerRecord<String, String> consumerRecordRead : recordsRead) {
+      Assert.assertEquals(
+          "Record value must be " + producerRecord.value(),
+          producerRecord.value(),
+          consumerRecordRead.value());
+      if (recordsRead.iterator().hasNext()) {
+        break;
+      }
+    }
   }
 }
