@@ -39,24 +39,25 @@ public class KafkaTopicTest {
     adminClient.close();
   }
 
-  //  @Test
-  //  public void createSingleTopicTest() throws Exception {
-  //    adminClient
-  //        .createTopics(Collections.singleton(new NewTopic("test-topic", 1, (short) 1)))
-  //        .all()
-  //        .get();
-  //    final Set<String> topics = adminClient.listTopics().names().get();
-  //    assertTrue("Topic \"test-topic\" is not created", topics.contains("test-topic"));
-  //  }
-
   @Test
-  public void createTopic() throws Exception {
-    final CreateTopicsResult result =
-        adminClient.createTopics(Collections.singleton(new NewTopic("test-topic", 2, (short) 1)));
-    Assert.assertTrue(
-        "Topic with specified name \"test-topic\" wasn't created\n",
-        result.values().containsKey("test-topic"));
+  public void createSingleTopicTest() throws Exception {
+    adminClient
+        .createTopics(Collections.singleton(new NewTopic("test-topic", 1, (short) 1)))
+        .all()
+        .get();
+    final Set<String> topics = adminClient.listTopics().names().get();
+    assertTrue("Topic \"test-topic\" is not created", topics.contains("test-topic"));
   }
+
+  //  @Test
+  //  public void createTopic() throws Exception {
+  //    final CreateTopicsResult result =
+  //            adminClient.createTopics(Collections.singleton(new NewTopic("test-topic", 2, (short)
+  // 1)));
+  //    Assert.assertTrue(
+  //            "Topic with specified name \"test-topic\" wasn't created\n",
+  //            result.values().containsKey("test-topic"));
+  //  }
 
   //  @Test
   //  public void listTopic1sTest() throws Exception {

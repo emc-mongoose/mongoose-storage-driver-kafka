@@ -49,7 +49,7 @@ public class KafkaNodeContainer implements Closeable {
                     "--override",
                     "broker.id=0",
                     "--override",
-                    "advertised.listener=PLAINTEXT://kafka-0:9092"))
+                    "advertised.listener=PLAINTEXT://kafka:9092"))
             .withAttachStderr(true)
             .withAttachStdout(true)
             .exec();
