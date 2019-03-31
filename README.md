@@ -64,3 +64,13 @@ Not supported
 [listTopics()](http://kafka.apache.org/21/javadoc/index.html?org/apache/kafka/clients/admin/AdminClient.html) returns list of topics
 * Steps:
 
+## Specific Configuration Options
+
+| Name | Type | Default Value | Description |
+|---------|----------|----------|----------|
+| storage-driver-read-timeoutMillis | integer | N/A | The event read timeout in milliseconds |
+| storage-driver-create-timeoutMillis | integer | N/A | The event create timeout in milliseconds |
+| storage-driver-create-validateOnly | boolean | N/A | Validates the request without creating a topic |
+| storage-driver-create-key-enabled | boolean | false | Creates a record with or without a key |
+| storage-net-node-addrs | string | 127.0.0.1 | The host name for this node |
+| storage-net-node-port | integer | 9092 | The port for this node |
