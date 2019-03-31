@@ -33,7 +33,7 @@ public class CreateRecordTest {
     properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, host_port);
     Properties producer_properties = new Properties();
     producer_properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, host_port);
-    producer_properties.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 1500000);
+    producer_properties.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 1050000);
 
     kafkaProducer =
         new KafkaProducer<>(producer_properties, new StringSerializer(), new ByteArraySerializer());
