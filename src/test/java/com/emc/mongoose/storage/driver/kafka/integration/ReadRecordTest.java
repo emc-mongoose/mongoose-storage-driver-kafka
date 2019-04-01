@@ -60,11 +60,11 @@ public class ReadRecordTest {
   @Test
   public void readRecordTest() throws Exception {
     consumer.subscribe(Arrays.asList(TOPIC_NAME));
-    ProducerRecord<String, String> producerRecord =
+    final ProducerRecord<String, String> producerRecord =
         new ProducerRecord<>(TOPIC_NAME, KEY_NAME, DATA);
     producer.send(producerRecord);
 
-    ConsumerRecords<String, String> recordsRead = consumer.poll(TIMEOUT);
+    final ConsumerRecords<String, String> recordsRead = consumer.poll(TIMEOUT);
     for (ConsumerRecord<String, String> consumerRecordRead : recordsRead) {
       Assert.assertEquals(
           "Record value must be " + producerRecord.value(),
