@@ -39,12 +39,22 @@ public class KafkaTopicTest {
 
   @Test
   public final void testConnectivity() throws Exception {
-    try (final Socket socket = new Socket("127.0.0.1", 2181)) {
+    Thread.sleep(2000);
+    try (final var socket = new Socket("127.0.0.1", 2181)) {
       assertTrue(
           "Not connected to " + kafkaNodeContainer.getZookeeperContainerIp() + ":" + 2181,
           socket.isConnected());
       assertFalse(
           "Closed by server: " + kafkaNodeContainer.getZookeeperContainerIp() + ":" + 2181,
+          socket.isClosed());
+    }
+    Thread.sleep(15000);
+    try (final var socket = new Socket("127.0.0.1", 9092)) {
+      assertTrue(
+          "Not connected to " + kafkaNodeContainer.getContainerIp() + ":" + 9092,
+          socket.isConnected());
+      assertFalse(
+          "Closed by server: " + kafkaNodeContainer.getContainerIp() + ":" + 9092,
           socket.isClosed());
     }
   }

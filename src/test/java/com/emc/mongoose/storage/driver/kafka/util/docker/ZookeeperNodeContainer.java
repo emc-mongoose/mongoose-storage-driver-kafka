@@ -4,6 +4,7 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.CreateNetworkResponse;
 import com.github.dockerjava.api.exception.NotFoundException;
+import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.core.DockerClientBuilder;
 import com.github.dockerjava.core.command.PullImageResultCallback;
 import java.io.Closeable;
@@ -34,6 +35,7 @@ public class ZookeeperNodeContainer implements Closeable {
             .createContainerCmd(IMAGE_NAME)
             .withName("zookeeper")
             .withNetworkMode("host") // --network kafka-net
+            .withExposedPorts(ExposedPort.tcp(2181))
             .withAttachStderr(true)
             .withAttachStdout(true)
             .exec();
