@@ -68,9 +68,12 @@ Not supported
 
 | Name | Type | Default Value | Description |
 |---------|----------|----------|----------|
-| storage-driver-read-timeoutMillis | integer | N/A | The event read timeout in milliseconds |
-| storage-driver-create-timeoutMillis | integer | N/A | The event create timeout in milliseconds |
-| storage-driver-create-validateOnly | boolean | N/A | Validates the request without creating a topic |
+| storage-driver-read-timeoutMillis | integer | 300000 | The event read and create timeout in milliseconds |
 | storage-driver-create-key-enabled | boolean | false | Creates a record with or without a key |
-| storage-net-node-addrs | string | 127.0.0.1 | The host name for this node |
-| storage-net-node-port | integer | 9092 | The port for this node |
+| storage-driver-send-bufferBytes | integer | 131072 | The size of the TCP send buffer to use when sending data. If the value is -1, the OS default will be used. |
+| storage-driver-receive-bufferBytes | integer | 32768 | The size of the TCP receive buffer to use when reading data. If the value is -1, the OS default will be used. |
+| storage-driver-request-size | integer | 1048576 | The maximum size of a request in bytes. This setting will limit the number of record batches the producer will send in a single request to avoid sending huge requests. |
+| storage-driver-batch-size | integer | 16384 | Allows you to change the batch size |
+| storage-driver-linger-ms | integer | 0 | The delay before sending the records. This setting gives the upper bound on the delay for batching: once we get *batch.size* worth of records for a partition it will be sent immediately regardless of this setting, however if we have fewer than this many bytes accumulated for this partition we will 'linger' for the specified time waiting for more records to show up. |
+| storage-driver-buffer-memory | long | 33554432 | The total bytes of memory the producer can use to buffer records waiting to be sent to the server. |
+| storage-net-node-connection | list | "" | A list of host/port pairs to use for establishing the initial connection to the Kafka cluster.  This list should be in the form *host1:port1*,*host2:port2* |
