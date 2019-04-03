@@ -27,9 +27,7 @@ public class CreateSingleTopicTest {
   @BeforeClass
   public static void setupClass() throws Exception {
     KAFKA_NODE_CONTAINER = new KafkaNodeContainer();
-    properties.put(
-        AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG,
-        KAFKA_NODE_CONTAINER.getContainerIp() + ":9092");
+    properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka:9092");
     adminClient = KafkaAdminClient.create(properties);
   }
 

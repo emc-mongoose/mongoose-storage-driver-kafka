@@ -49,7 +49,7 @@ public class KafkaNodeContainer implements Closeable {
                     "--override",
                     "broker.id=0",
                     "--override",
-                    "advertised.listener=PLAINTEXT://localhost:9092"))
+                    "advertised.listener=PLAINTEXT://kafka-0:9092"))
             .withAttachStderr(true)
             .withAttachStdout(true)
             .exec();
@@ -64,6 +64,11 @@ public class KafkaNodeContainer implements Closeable {
   public final String getContainerIp() {
     InspectContainerResponse response =
         DOCKER_CLIENT.inspectContainerCmd(KAFKA_CONTAINER_ID).exec();
+    return response.getNetworkSettings().getNetworks().get("host").getIpAddress();
+  }
+
+  public final String getZookeeperContainerIp() {
+    InspectContainerResponse response = DOCKER_CLIENT.inspectContainerCmd("zookeeper").exec();
     return response.getNetworkSettings().getNetworks().get("host").getIpAddress();
   }
 
