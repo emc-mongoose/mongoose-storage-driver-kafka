@@ -70,10 +70,10 @@ test_integration:
   stage: test
   script:
     # Install Kafka
-    - curl -L https://github.com/apache/kafka/archive/${KAFKA_VERSION}.tar.gz -o /opt/kafka.tar.gz
+    - wget https://github.com/apache/kafka/archive/${KAFKA_VERSION}.tar.gz -o /opt/${KAFKA_VERSION}.tar.gz
     - cd /opt
-    - tar xvzf kafka.tar.gz
-    - cd ${CI_PROJECT_DIR}
+    - tar xvzf ${KAFKA_VERSION}.tar.gz
+    - cd kafka-${KAFKA_VERSION}
     - bin/zookeeper-server-start.sh config/zookeeper.properties
     - bin/kafka-server-start.sh config/server.properties
     - ./gradlew integrationTest
