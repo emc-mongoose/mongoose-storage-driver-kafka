@@ -72,7 +72,7 @@ test_integration:
     # Install Kafka
     - curl -L https://github.com/apache/kafka/archive/${KAFKA_VERSION}.tar.gzv -o /opt/kafka.tar.gzv
     - cd /opt
-    - tar xvf kafka.tar.gzv
+    - tar xvzf kafka.tar.gzv
     - cd ${CI_PROJECT_DIR}
     - bin/zookeeper-server-start.sh config/zookeeper.properties
     - bin/kafka-server-start.sh config/server.properties
