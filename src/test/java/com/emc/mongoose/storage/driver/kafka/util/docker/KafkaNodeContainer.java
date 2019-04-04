@@ -34,14 +34,14 @@ public class KafkaNodeContainer implements Closeable {
         DOCKER_CLIENT
             .createContainerCmd(IMAGE_NAME)
             .withName("kafka")
-            .withNetworkMode("host") // --network kafka-net
+            .withNetworkMode("kafka-net") // --network kafka-net
             .withExposedPorts(ExposedPort.tcp(9010), ExposedPort.tcp(9092))
             .withEntrypoint("./bin/kafka-server-start.sh")
             .withCmd(
                 Arrays.asList(
                     "./config/server.properties",
                     "--override",
-                    "zookeeper.connect=localhost:2181",
+                    "zookeeper.connect=zookeeper:2181",
                     "--override",
                     "log.dirs=/var/lib/kafka/data/topics",
                     "--override",
@@ -64,12 +64,12 @@ public class KafkaNodeContainer implements Closeable {
   public final String getContainerIp() {
     InspectContainerResponse response =
         DOCKER_CLIENT.inspectContainerCmd(KAFKA_CONTAINER_ID).exec();
-    return response.getNetworkSettings().getNetworks().get("host").getIpAddress();
+    return response.getNetworkSettings().getNetworks().get("kafka-net").getIpAddress();
   }
 
   public final String getZookeeperContainerIp() {
     InspectContainerResponse response = DOCKER_CLIENT.inspectContainerCmd("zookeeper").exec();
-    return response.getNetworkSettings().getNetworks().get("host").getIpAddress();
+    return response.getNetworkSettings().getNetworks().get("kafka-net").getIpAddress();
   }
 
   public final void close() {
