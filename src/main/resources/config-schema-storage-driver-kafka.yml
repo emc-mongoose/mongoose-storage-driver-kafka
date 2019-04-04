@@ -1,0 +1,24 @@
+---
+load:
+  op:
+    timeoutMillis: int
+storage:
+  driver:
+    create:
+      key:
+        enabled: boolean
+    request:
+      size: int
+    batch:
+      size: int
+    buffer:
+      memory: long
+    compression:
+      type: string
+  net:
+    sndBuf: int
+    rcvBuf: int
+    linger: int
+  node:
+    addrs: list
+    port: int
