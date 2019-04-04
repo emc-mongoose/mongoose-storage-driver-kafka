@@ -70,7 +70,7 @@ test_integration:
   stage: test
   script:
     # Install Kafka
-    - wget https://github.com/apache/kafka/archive/${KAFKA_VERSION}.tar.gz -o /opt/${KAFKA_VERSION}.tar.gz
+    - wget https://github.com/apache/kafka/archive/${KAFKA_VERSION}.tar.gz -O /opt/${KAFKA_VERSION}.tar.gz
     - cd /opt
     - tar xvzf ${KAFKA_VERSION}.tar.gz
     - cd kafka-${KAFKA_VERSION}
