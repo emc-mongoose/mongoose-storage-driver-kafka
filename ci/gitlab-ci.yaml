@@ -73,9 +73,8 @@ test_integration:
     - wget https://github.com/apache/kafka/archive/${KAFKA_VERSION}.tar.gz -O /opt/${KAFKA_VERSION}.tar.gz
     - cd /opt
     - tar xvzf ${KAFKA_VERSION}.tar.gz
-    - cd kafka-${KAFKA_VERSION}
-    - bin/zookeeper-server-start.sh config/zookeeper.properties
-    - bin/kafka-server-start.sh config/server.properties
+    - nohup /opt/kafka-${KAFKA_VARISON}/bin/zookeeper-server-start.sh config/zookeeper.properties
+    - nohup /opt/kafka-${KAFKA_VARISON}/bin/kafka-server-start.sh config/server.properties
     - ./gradlew integrationTest
   artifacts:
     paths:
