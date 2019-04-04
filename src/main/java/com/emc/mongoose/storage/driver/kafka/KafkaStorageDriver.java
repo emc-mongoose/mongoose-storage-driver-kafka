@@ -17,7 +17,7 @@ import java.util.List;
 public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     extends CoopStorageDriverBase<I, O> {
 
-  protected KafkaStorageDriver(
+  public KafkaStorageDriver(
       String testStepId,
       DataInput dataInput,
       Config storageConfig,
@@ -30,7 +30,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   @Override
   protected final boolean submit(final O op) throws IllegalStateException {
     if (concurrencyThrottle.tryAcquire()) {
-      final OpType opType = op.type();
+      final var opType = op.type();
       if (op instanceof DataOperation) {
         submitRecordOperation((DataOperation) op, opType);
       } else if (op instanceof PathOperation) {
@@ -95,7 +95,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   @Override
   protected final int submit(final List<O> ops) throws IllegalStateException {
-    final int opsCount = ops.size();
+    final var opsCount = ops.size();
     for (var i = 0; i < opsCount; i++) {
       if (!submit(ops.get(i))) {
         return i;
