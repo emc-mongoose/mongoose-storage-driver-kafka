@@ -39,7 +39,7 @@ public class KafkaTopicTest {
 
   @Test
   public final void testConnectivity() throws Exception {
-    Thread.sleep(150000);
+    Thread.sleep(20000);
     try (final var socket = new Socket(kafkaNodeContainer.getZookeeperContainerIp(), 2181)) {
       assertTrue(
           "Not connected to " + kafkaNodeContainer.getZookeeperContainerIp() + ":" + 2181,
