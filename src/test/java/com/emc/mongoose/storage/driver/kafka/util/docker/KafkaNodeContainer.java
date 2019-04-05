@@ -36,6 +36,7 @@ public class KafkaNodeContainer implements Closeable {
             .withName("kafka")
             .withNetworkMode("kafka-net") // --network kafka-net
             .withExposedPorts(ExposedPort.tcp(9010), ExposedPort.tcp(9092))
+            .withPublishAllPorts(Boolean.TRUE)
             .withEntrypoint("./bin/kafka-server-start.sh")
             .withCmd(
                 Arrays.asList(
