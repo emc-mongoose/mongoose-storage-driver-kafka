@@ -19,6 +19,6 @@ storage:
     sndBuf: int
     rcvBuf: int
     linger: int
-  node:
-    addrs: list
-    port: int
+    node:
+      addrs: list
+      port: int
