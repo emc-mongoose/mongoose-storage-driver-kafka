@@ -20,5 +20,5 @@ storage:
     rcvBuf: 32768
     linger: 0
     node:
-      addrs:
+      addrs: ""
       port: 9092
