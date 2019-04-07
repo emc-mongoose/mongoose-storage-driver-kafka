@@ -79,6 +79,7 @@ test_integration:
     - cd kafka_$SCALA_VERSION-$KAFKA_VERSION
     - bash ./bin/zookeeper-server-start.sh config/zookeeper.properties > /tmp/zookeeper_bash.out &
     - bash ./bin/kafka-server-start.sh config/server.properties > /tmp/kafka_bash.out &
+    - cd ${CI_PROJECT_DIR}
     - ./gradlew integrationTest
   after_script:
     - killall java
