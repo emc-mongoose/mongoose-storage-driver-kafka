@@ -15,13 +15,15 @@ public class DeleteSingleTopicTest {
   private static AdminClient adminClient;
   private static Properties properties = new Properties();
 
+  private static final String topicName = "test-topic-for-delete";
+
   @Test
   public void deleteTopic() throws Exception {
     DeleteTopicsResult result =
-        adminClient.deleteTopics(Collections.singleton("test-topic"));
+        adminClient.deleteTopics(Collections.singleton(topicName));
     Assert.assertTrue(
-        "Topic with specified name \"test-topic\" wasn't deleted\n",
-        result.values().containsKey("test-topic"));
+        "Topic with specified name \"" + topicName + "\" wasn't deleted\n",
+        result.values().containsKey(topicName));
   }
 
   @BeforeClass
@@ -31,9 +33,9 @@ public class DeleteSingleTopicTest {
         AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG,
         KAFKA_NODE_CONTAINER.getContainerIp() + ":9092");
     adminClient = KafkaAdminClient.create(properties);
-    CreateSingleTopicTest createTopic = new CreateSingleTopicTest();
-    createTopic.createTopic();
-  }
+    final CreateTopicsResult result =
+    adminClient.createTopics(Collections.singleton(new NewTopic(topicName, 2, (short) 1)));
+}
 
   @AfterClass
   public static void tearDownClass() {
