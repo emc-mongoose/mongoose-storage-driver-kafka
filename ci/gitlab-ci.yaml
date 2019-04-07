@@ -72,10 +72,10 @@ test_integration:
   script:
     # Install Kafka
     # - wget https://github.com/apache/kafka/archive/${KAFKA_VERSION}.tar.gz -O /opt/${KAFKA_VERSION}.tar.gz
-    - echo http://mirror.linux-ia64.org/apache/kafka/${KAFKA_VERSION}/kafka_$SCALA_VERSION-$KAFKA_VERSION.tgz
-    - wget http://mirror.linux-ia64.org/apache/kafka/${KAFKA_VERSION}/kafka_$SCALA_VERSION-$KAFKA_VERSION.tgz -O /opt/kafka.tgz
+    # - echo http://mirror.linux-ia64.org/apache/kafka/${KAFKA_VERSION}/kafka_$SCALA_VERSION-$KAFKA_VERSION.tgz
+    - wget http://apache-mirror.rbc.ru/pub/apache/kafka/${KAFKA_VERSION}/kafka_$SCALA_VERSION-$KAFKA_VERSION.tgz -O /opt/kafka.tgz
     - cd /opt
-    - tar xvf kafka.tar.gz
+    - tar xvf kafka.tgz
     - cd kafka_{$SCALA_VERSION}-{$KAFKA_VERSION}
     - bash /bin/zookeeper-server-start.sh /opt/kafka-${KAFKA_VERSION}/config/zookeeper.properties
     - bash /bin/kafka-server-start.sh /opt/kafka-${KAFKA_VERSION}/config/server.properties
