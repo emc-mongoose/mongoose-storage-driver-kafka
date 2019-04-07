@@ -21,6 +21,7 @@ stages:
 
 before_script:
   - export KAFKA_VERSION=$(cat build.gradle | grep kafka | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
+  - export SCALA_VERSION=$( cat build.gradle | grep scala | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p' | sed 's/\([^\.]*\.[^\.]*\)\..*/\1/'')
   - apk --update add --no-cache ca-certificates curl openssl binutils xz gnupg bash
   - curl -Lks https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.2%2B9/OpenJDK11U-jdk_x64_linux_hotspot_11.0.2_9.tar.gz -o /tmp/jdk11.tgz
   - tar xvf /tmp/jdk11.tgz -C /opt
@@ -70,12 +71,13 @@ test_integration:
   stage: test
   script:
     # Install Kafka
-    - wget https://github.com/apache/kafka/archive/${KAFKA_VERSION}.tar.gz -O /opt/${KAFKA_VERSION}.tar.gz
+    # - wget https://github.com/apache/kafka/archive/${KAFKA_VERSION}.tar.gz -O /opt/${KAFKA_VERSION}.tar.gz
+    - wget http://apache-mirror.rbc.ru/pub/apache/kafka/${KAFKA_VERSION}/kafka_{$SCALA_VERSION}-{$KAFKA_VERSION}.tgz -O /opt/kafka.tgz
     - cd /opt
-    - tar xvzf ${KAFKA_VERSION}.tar.gz
-    - cd kafka-${KAFKA_VERSION}/bin
-    - bash /opt/kafka-${KAFKA_VERSION}/bin/zookeeper-server-start.sh /opt/kafka-${KAFKA_VERSION}/config/zookeeper.properties
-    - bash /opt/kafka-${KAFKA_VERSION}/bin/kafka-server-start.sh /opt/kafka-${KAFKA_VERSION}/config/server.properties
+    - tar xvf kafka.tar.gz
+    - cd kafka_{$SCALA_VERSION}-{$KAFKA_VERSION}
+    - bash /bin/zookeeper-server-start.sh /opt/kafka-${KAFKA_VERSION}/config/zookeeper.properties
+    - bash /bin/kafka-server-start.sh /opt/kafka-${KAFKA_VERSION}/config/server.properties
     - ./gradlew integrationTest
   artifacts:
     paths:
