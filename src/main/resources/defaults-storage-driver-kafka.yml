@@ -1,0 +1,24 @@
+---
+load:
+  op:
+    timeoutMillis: 300000
+storage:
+  driver:
+    create:
+      key:
+        enabled: false
+    request:
+      size: 1048576
+    batch:
+      size: 16384
+    buffer:
+      memory: 33554432
+    compression:
+      type: none
+  net:
+    sndBuf: 131072
+    rcvBuf: 32768
+    linger: 0
+    node:
+      addrs: []
+      port: 9092
