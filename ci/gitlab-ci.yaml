@@ -74,7 +74,6 @@ test_integration:
     - cd /opt
     - tar xvzf ${KAFKA_VERSION}.tar.gz
     - cd kafka-${KAFKA_VERSION}/bin
-    - ls
     - chmod +x /opt/kafka-${KAFKA_VERSION}/bin/zookeeper-server-start.sh
     - ./opt/kafka-${KAFKA_VERSION}/bin/zookeeper-server-start.sh /opt/kafka-${KAFKA_VERSION}/config/zookeeper.properties
     - ./opt/kafka-${KAFKA_VERSION}/bin/kafka-server-start.sh /opt/kafka-${KAFKA_VERSION}/config/server.properties
