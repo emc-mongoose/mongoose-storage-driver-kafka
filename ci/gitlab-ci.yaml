@@ -76,7 +76,7 @@ test_integration:
     - wget http://apache-mirror.rbc.ru/pub/apache/kafka/${KAFKA_VERSION}/kafka_$SCALA_VERSION-$KAFKA_VERSION.tgz -O /opt/kafka.tgz
     - cd /opt
     - tar xvf kafka.tgz
-    - cd kafka_{$SCALA_VERSION}-{$KAFKA_VERSION}
+    - cd kafka_$SCALA_VERSION-$KAFKA_VERSION
     - bash /bin/zookeeper-server-start.sh /opt/kafka-${KAFKA_VERSION}/config/zookeeper.properties
     - bash /bin/kafka-server-start.sh /opt/kafka-${KAFKA_VERSION}/config/server.properties
     - ./gradlew integrationTest
