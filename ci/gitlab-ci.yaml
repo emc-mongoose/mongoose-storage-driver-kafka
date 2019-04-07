@@ -74,10 +74,8 @@ test_integration:
     - cd /opt
     - tar xvzf ${KAFKA_VERSION}.tar.gz
     - cd kafka-${KAFKA_VERSION}/bin
-    - chmod 777 -R /opt/kafka-${KAFKA_VERSION}/
-    - chmod -x /opt/kafka-${KAFKA_VERSION}/bin/zookeeper-server-start.sh
-    - bash /opt/kafka-${KAFKA_VERSION}/bin/zookeeper-server-start.sh /opt/kafka-${KAFKA_VERSION}/config/zookeeper.properties
-    - bash /opt/kafka-${KAFKA_VERSION}/bin/kafka-server-start.sh /opt/kafka-${KAFKA_VERSION}/config/server.properties
+    - nohup /opt/kafka-${KAFKA_VERSION}/bin/zookeeper-server-start.sh /opt/kafka-${KAFKA_VERSION}/config/zookeeper.properties
+    - nohup /opt/kafka-${KAFKA_VERSION}/bin/kafka-server-start.sh /opt/kafka-${KAFKA_VERSION}/config/server.properties
     - ./gradlew integrationTest
   artifacts:
     paths:
