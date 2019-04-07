@@ -77,11 +77,15 @@ test_integration:
     - cd /opt
     - tar xvf kafka.tgz
     - cd kafka_$SCALA_VERSION-$KAFKA_VERSION
-    - bash ./bin/zookeeper-server-start.sh config/zookeeper.properties
-    - bash ./bin/kafka-server-start.sh config/server.properties
+    - bash ./bin/zookeeper-server-start.sh config/zookeeper.properties > /tmp/zookeeper_bash.out &
+    - bash ./bin/kafka-server-start.sh config/server.properties > /tmp/kafka_bash.out &
     - ./gradlew integrationTest
+  after_script:
+    - killall java
   artifacts:
     paths:
+      - /tmp/zookeeper_bash.out
+      - /tmp/kafka_bash.out
       - build/reports/tests/integrationTest/*
     when: on_failure
 
