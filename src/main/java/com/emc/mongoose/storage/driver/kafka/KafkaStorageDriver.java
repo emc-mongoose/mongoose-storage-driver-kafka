@@ -62,6 +62,12 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     }
   }
 
+  private void submitRecordDeleteOperation() {}
+
+  private void submitRecordReadOperation() {}
+
+  private void submitRecordCreateOperation() {}
+
   private void submitTopicOperation(PathOperation op, OpType opType) {
     switch (opType) {
       case CREATE:
@@ -81,6 +87,12 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         throw new AssertionError("Not implemented");
     }
   }
+
+  private void submitTopicCreateOperation() {}
+
+  private void submitTopicReadOperation() {}
+
+  private void submitTopicDeleteOperation() {}
 
   @Override
   protected final int submit(final List<O> ops, final int from, final int to)
