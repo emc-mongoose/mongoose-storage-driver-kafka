@@ -26,6 +26,8 @@ group = "com.github.emc-mongoose"
 version = "4.2.6"
 sourceCompatibility = 11
 targetCompatibility = 11
+def mainClassName = "com.emc.mongoose.storage.driver.kafka.KafkaStorageDriver"
+
 ext {
 	depVersion = [
 		commonsJava              : "2.3.5",
@@ -119,6 +121,7 @@ task integrationTest(type: Test) {
 		showStandardStreams = true
 	}
 }
+
 jar {
 	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 	excludes = [
@@ -136,12 +139,13 @@ jar {
 			"Automatic-Module-Name": rootPkg,
 			"Implementation-Title": project.name,
 			"Implementation-Version": project.version,
+				"Main-Class": "$mainClassName",
 		)
 	}
 	from configurations
 		.provided
 		.copyRecursive()
-		.collect { zipTree(it) }
+		.collect { it.isDirectory() ? it : zipTree(it) }
 }
 javadoc {
 	failOnError = false
@@ -224,9 +228,14 @@ publishing {
 						email = "limonchik16@gmail.com"
 					}
 					developer {
-						id = "RomanEgel"
-						name = "Roman Egel"
-						email = "f1xp@mail.ru"
+						id = "paulgrape"
+						name = "Pavel Vinogradov"
+						email = "vin.pavel13@gmail.com"
+					}
+					developer {
+						id = "ivan-abc"
+						name = "Ivan Sysoev"
+						email = ""
 					}
 					developer {
 						id = "veronikaKochugova"
@@ -255,6 +264,7 @@ publishing {
 signing {
 	sign publishing.publications
 }
+//TODO
 task releaseToMavenCentral {
 	dependsOn += publishToNexus
 	dependsOn += closeAndReleaseRepository
