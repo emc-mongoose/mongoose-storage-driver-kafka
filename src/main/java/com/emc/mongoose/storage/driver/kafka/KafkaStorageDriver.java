@@ -8,11 +8,32 @@ import com.emc.mongoose.base.item.op.OpType;
 import com.emc.mongoose.base.item.op.Operation;
 import com.emc.mongoose.base.item.op.data.DataOperation;
 import com.emc.mongoose.base.item.op.path.PathOperation;
+import com.emc.mongoose.base.logging.LogUtil;
 import com.emc.mongoose.base.storage.Credential;
 import com.emc.mongoose.storage.driver.coop.CoopStorageDriverBase;
+import com.emc.mongoose.storage.driver.kafka.cache.AdminClientCreateFunction;
+import com.emc.mongoose.storage.driver.kafka.cache.AdminClientCreateFunctionImpl;
 import com.github.akurilov.confuse.Config;
+import lombok.val;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.CreateTopicsResult;
+import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.errors.TopicExistsException;
+import org.apache.logging.log4j.Level;
+
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+
+import static com.emc.mongoose.base.Exceptions.throwUncheckedIfInterrupted;
+import static com.emc.mongoose.base.item.op.Operation.Status.FAIL_UNKNOWN;
+import static com.emc.mongoose.base.item.op.Operation.Status.INTERRUPTED;
 
 public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     extends CoopStorageDriverBase<I, O> {
@@ -26,6 +47,10 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       throws IllegalConfigurationException {
     super(testStepId, dataInput, storageConfig, verifyFlag, batchSize);
   }
+
+  private final Map<Properties, AdminClientCreateFunction> adminClientCreateFuncCache =
+          new ConcurrentHashMap<>();
+  private final Map<String, AdminClient> adminClientCache = new ConcurrentHashMap<>();
 
   @Override
   protected final boolean submit(final O op) throws IllegalStateException {
@@ -71,7 +96,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private void submitTopicOperation(PathOperation op, OpType opType) {
     switch (opType) {
       case CREATE:
-        submitTopicCreateOperation();
+        submitTopicCreateOperation(op);
         break;
       case READ:
         submitTopicReadOperation();
@@ -88,7 +113,38 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     }
   }
 
-  private void submitTopicCreateOperation() {}
+  private void submitTopicCreateOperation(final PathOperation op) {
+
+    final String topicName = op.dstPath();
+    try {
+      val properties = new Properties();
+      try {
+        properties.load(new FileReader(new File("kafka.properties")));
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+      val adminClientCreateFunc = adminClientCreateFuncCache.computeIfAbsent(properties,
+              AdminClientCreateFunctionImpl::new);
+      val adminClient = adminClientCache.computeIfAbsent("kafka", adminClientCreateFunc);
+      val newTopic = new NewTopic(topicName, 1, (short) 1);
+      final CreateTopicsResult createTopicsResult = adminClient.createTopics(Collections.singleton(newTopic));
+      createTopicsResult.values().get(topicName).get();
+    } catch (InterruptedException | ExecutionException e) {
+      if (!(e.getCause() instanceof TopicExistsException)) {
+        // TopicExistsException - Swallow this exception, just means the topic already exists.
+        completeFailedOperation((O) op, e);
+      }
+    } catch (final NullPointerException e) {
+      if (!isStarted()) {
+        completeOperation((O) op, INTERRUPTED);
+      } else {
+        completeFailedOperation((O) op, e);
+      }
+    } catch (final Throwable thrown) {
+      throwUncheckedIfInterrupted(thrown);
+      completeFailedOperation((O) op, thrown);
+    }
+  }
 
   private void submitTopicReadOperation() {}
 
