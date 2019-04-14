@@ -264,7 +264,6 @@ publishing {
 signing {
 	sign publishing.publications
 }
-//TODO
 task releaseToMavenCentral {
 	dependsOn += publishToNexus
 	dependsOn += closeAndReleaseRepository
