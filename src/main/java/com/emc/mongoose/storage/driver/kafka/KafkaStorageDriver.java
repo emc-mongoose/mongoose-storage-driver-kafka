@@ -172,6 +172,20 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     return opsCount;
   }
 
+  boolean completeOperation(final O op, final Operation.Status status) {
+    concurrencyThrottle.release();
+    op.status(status);
+    op.finishRequest();
+    op.startResponse();
+    op.finishResponse();
+    return handleCompleted(op);
+  }
+
+  boolean completeFailedOperation(final O op, final Throwable thrown) {
+    LogUtil.exception(Level.DEBUG, thrown, "{}: unexpected load operation failure", stepId);
+    return completeOperation(op, FAIL_UNKNOWN);
+  }
+
   @Override
   protected String requestNewPath(String path) {
     throw new AssertionError("Should not be invoked");
