@@ -48,7 +48,7 @@ Not supported.
 Mongoose should perform the load operations on the *topic* when the configuration option `item-type` is set to `path`.
 Apache Kafka has `AdminClient Api`, which provides function for managing and inspecting topics. 
 ### Create
-[createTopics()](http://kafka.apache.org/21/javadoc/index.html?org/apache/kafka/clients/admin/AdminClient.html) creates a batch of new topics.
+[createTopics()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/admin/AdminClient.html#createTopics-java.util.Collection-) creates a batch of new topics.
 * Steps:
 
 ### Read
@@ -57,11 +57,11 @@ Read all records at once.
 Not supported
 
 ### Delete
-[deleteTopics()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/admin/AdminClient.html#deleteRecords-java.util.Map-) deletes a batch of topics.
+[deleteTopics()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/admin/AdminClient.html#deleteTopics-java.util.Collection-) deletes a batch of topics.
 * Steps:
 
 ### List
-[listTopics()](http://kafka.apache.org/21/javadoc/index.html?org/apache/kafka/clients/admin/AdminClient.html) returns list of topics
+[listTopics()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/admin/AdminClient.html#listTopics--) returns list of topics
 * Steps:
 
 ## Specific Configuration Options
