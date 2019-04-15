@@ -26,7 +26,6 @@ group = "com.github.emc-mongoose"
 version = "4.2.6"
 sourceCompatibility = 11
 targetCompatibility = 11
-def mainClassName = "com.emc.mongoose.storage.driver.kafka.KafkaStorageDriver"
 
 ext {
 	depVersion = [
@@ -138,8 +137,7 @@ jar {
 		attributes(
 			"Automatic-Module-Name": rootPkg,
 			"Implementation-Title": project.name,
-			"Implementation-Version": project.version,
-				"Main-Class": "$mainClassName",
+			"Implementation-Version": project.version
 		)
 	}
 	from configurations
@@ -235,7 +233,7 @@ publishing {
 					developer {
 						id = "ivan-abc"
 						name = "Ivan Sysoev"
-						email = ""
+						email = "ivanabc97@gmail.com"
 					}
 					developer {
 						id = "veronikaKochugova"
