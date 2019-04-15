@@ -1,5 +1,7 @@
 package com.emc.mongoose.storage.driver.kafka;
 
+import static com.emc.mongoose.base.item.op.Operation.Status.SUCC;
+
 import com.emc.mongoose.base.config.IllegalConfigurationException;
 import com.emc.mongoose.base.data.DataInput;
 import com.emc.mongoose.base.item.Item;
@@ -31,6 +33,9 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   protected final boolean submit(final O op) throws IllegalStateException {
     if (concurrencyThrottle.tryAcquire()) {
       final var opType = op.type();
+      if (opType.equals(OpType.NOOP)) {
+        submitNoop(op);
+      }
       if (op instanceof DataOperation) {
         submitRecordOperation((DataOperation) op, opType);
       } else if (op instanceof PathOperation) {
@@ -93,6 +98,20 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private void submitTopicReadOperation() {}
 
   private void submitTopicDeleteOperation() {}
+
+  private void submitNoop(final O op) {
+    op.startRequest();
+    completeOperation(op, SUCC);
+  }
+
+  private boolean completeOperation(final O op, final Operation.Status status) {
+    concurrencyThrottle.release();
+    op.status(status);
+    op.finishRequest();
+    op.startResponse();
+    op.finishResponse();
+    return handleCompleted(op);
+  }
 
   @Override
   protected final int submit(final List<O> ops, final int from, final int to)
