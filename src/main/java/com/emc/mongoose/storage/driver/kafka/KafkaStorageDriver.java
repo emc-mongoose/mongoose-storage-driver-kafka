@@ -13,18 +13,41 @@ import com.emc.mongoose.storage.driver.coop.CoopStorageDriverBase;
 import com.github.akurilov.confuse.Config;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import static com.github.akurilov.commons.io.el.ExpressionInput.ASYNC_MARKER;
+import static com.github.akurilov.commons.io.el.ExpressionInput.INIT_MARKER;
+import static com.github.akurilov.commons.io.el.ExpressionInput.SYNC_MARKER;
 
 public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     extends CoopStorageDriverBase<I, O> {
 
+  protected final Map<String, String> dynamicHeaders = new HashMap<>();
+
   public KafkaStorageDriver(
-      String testStepId,
-      DataInput dataInput,
-      Config storageConfig,
-      boolean verifyFlag,
-      int batchSize)
-      throws IllegalConfigurationException {
+          String testStepId,
+          DataInput dataInput,
+          Config storageConfig,
+          boolean verifyFlag,
+          int batchSize)
+          throws IllegalConfigurationException {
     super(testStepId, dataInput, storageConfig, verifyFlag, batchSize);
+    final var KafkaConfig = storageConfig.configVal("driver-create");
+    final var headersMap = KafkaConfig.<String>mapVal("headers");
+    for (final var header : headersMap.entrySet()) {
+      final var headerKey = header.getKey();
+      final var headerValue = header.getValue();
+      if (headerKey.contains(ASYNC_MARKER)
+              || headerKey.contains(SYNC_MARKER)
+              || headerKey.contains(INIT_MARKER)
+              || headerValue.contains(ASYNC_MARKER)
+              || headerValue.contains(SYNC_MARKER)
+              || headerValue.contains(INIT_MARKER)) {
+        dynamicHeaders.put(headerKey, headerValue);
+      } else {
+        continue;
+      }
+    }
   }
 
   @Override
@@ -62,11 +85,14 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     }
   }
 
-  private void submitRecordDeleteOperation() {}
+  private void submitRecordDeleteOperation() {
+  }
 
-  private void submitRecordReadOperation() {}
+  private void submitRecordReadOperation() {
+  }
 
-  private void submitRecordCreateOperation() {}
+  private void submitRecordCreateOperation() {
+  }
 
   private void submitTopicOperation(PathOperation op, OpType opType) {
     switch (opType) {
@@ -88,15 +114,18 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     }
   }
 
-  private void submitTopicCreateOperation() {}
+  private void submitTopicCreateOperation() {
+  }
 
-  private void submitTopicReadOperation() {}
+  private void submitTopicReadOperation() {
+  }
 
-  private void submitTopicDeleteOperation() {}
+  private void submitTopicDeleteOperation() {
+  }
 
   @Override
   protected final int submit(final List<O> ops, final int from, final int to)
-      throws IllegalStateException {
+          throws IllegalStateException {
     for (var i = from; i < to; i++) {
       if (!submit(ops.get(i))) {
         return i - from;
@@ -129,16 +158,18 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   @Override
   public List<I> list(
-      ItemFactory<I> itemFactory,
-      String path,
-      String prefix,
-      int idRadix,
-      I lastPrevItem,
-      int count)
-      throws IOException {
+          ItemFactory<I> itemFactory,
+          String path,
+          String prefix,
+          int idRadix,
+          I lastPrevItem,
+          int count)
+          throws IOException {
     return null;
   }
 
   @Override
-  public void adjustIoBuffers(long avgTransferSize, OpType opType) {}
+  public void adjustIoBuffers(long avgTransferSize, OpType opType) {
+  }
 }
+
