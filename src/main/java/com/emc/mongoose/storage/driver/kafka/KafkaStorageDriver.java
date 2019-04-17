@@ -84,6 +84,9 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     if (concurrencyThrottle.tryAcquire()) {
       final var opType = op.type();
       var nodeAddr = op.nodeAddr();
+      if (opType.equals(OpType.NOOP)) {
+        submitNoop(op);
+      }
       if (op instanceof DataOperation) {
         submitRecordOperation((DataOperation) op, opType, nodeAddr);
       } else if (op instanceof PathOperation) {
@@ -227,6 +230,11 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private void submitTopicReadOperation() {}
 
   private void submitTopicDeleteOperation() {}
+
+  private void submitNoop(final O op) {
+    op.startRequest();
+    completeOperation(op, SUCC);
+  }
 
   @Override
   protected final int submit(final List<O> ops, final int from, final int to)
