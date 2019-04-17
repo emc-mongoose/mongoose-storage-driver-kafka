@@ -23,7 +23,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
-import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 
 public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
@@ -32,7 +31,6 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private final Map<Properties, AdminClientCreateFunction> adminClientCreateFuncCache =
       new ConcurrentHashMap<>();
   private final Map<String, AdminClient> adminClientCache = new ConcurrentHashMap<>();
-  private final Map<String, NewTopic> topicCache = new ConcurrentHashMap<>();
 
   public KafkaStorageDriver(
       String testStepId,
