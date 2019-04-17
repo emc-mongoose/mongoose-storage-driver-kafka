@@ -34,6 +34,7 @@ import java.util.concurrent.ExecutionException;
 import static com.emc.mongoose.base.Exceptions.throwUncheckedIfInterrupted;
 import static com.emc.mongoose.base.item.op.Operation.Status.FAIL_UNKNOWN;
 import static com.emc.mongoose.base.item.op.Operation.Status.INTERRUPTED;
+import static com.emc.mongoose.base.item.op.Operation.Status.FAIL_IO;
 
 public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     extends CoopStorageDriverBase<I, O> {
@@ -48,9 +49,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     super(testStepId, dataInput, storageConfig, verifyFlag, batchSize);
   }
 
-  private final Map<Properties, AdminClientCreateFunction> adminClientCreateFuncCache =
-          new ConcurrentHashMap<>();
-  private final Map<String, AdminClient> adminClientCache = new ConcurrentHashMap<>();
+  private final AdminClient adminClient = AdminClient.create(new Properties()); // will be in constructor
 
   @Override
   protected final boolean submit(final O op) throws IllegalStateException {
@@ -115,25 +114,24 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   private void submitTopicCreateOperation(final PathOperation op) {
 
-    final String topicName = op.dstPath();
+    final String topicName = op.item().name();
     try {
-      val properties = new Properties();
-      try {
-        properties.load(new FileReader(new File("kafka.properties")));
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
-      val adminClientCreateFunc = adminClientCreateFuncCache.computeIfAbsent(properties,
-              AdminClientCreateFunctionImpl::new);
-      val adminClient = adminClientCache.computeIfAbsent("kafka", adminClientCreateFunc);
       val newTopic = new NewTopic(topicName, 1, (short) 1);
-      final CreateTopicsResult createTopicsResult = adminClient.createTopics(Collections.singleton(newTopic));
-      createTopicsResult.values().get(topicName).get();
-    } catch (InterruptedException | ExecutionException e) {
-      if (!(e.getCause() instanceof TopicExistsException)) {
-        // TopicExistsException - Swallow this exception, just means the topic already exists.
-        completeFailedOperation((O) op, e);
-      }
+      val createTopicsResult = adminClient.createTopics(Collections.singleton(newTopic));
+      val createTopicFuture = createTopicsResult.values().get(topicName).
+              whenComplete((result, exception) -> {
+                if(exception != null) {
+                  if (!(exception.getCause() instanceof TopicExistsException)) {
+                    LogUtil.exception(Level.DEBUG, exception, "{}: the topic already exists", stepId);
+                    completeOperation((O) op, FAIL_IO);
+                  }
+                  completeFailedOperation((O) op, exception);
+                }
+                else {
+                  //topicCache.put(topicName, newTopic)
+                  handleTopicCreate(topicName, op);
+                }
+              });
     } catch (final NullPointerException e) {
       if (!isStarted()) {
         completeOperation((O) op, INTERRUPTED);
@@ -144,6 +142,10 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       throwUncheckedIfInterrupted(thrown);
       completeFailedOperation((O) op, thrown);
     }
+  }
+
+  void handleTopicCreate(final String topicName, final PathOperation op) {
+
   }
 
   private void submitTopicReadOperation() {}
