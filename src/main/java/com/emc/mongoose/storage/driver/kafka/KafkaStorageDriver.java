@@ -24,7 +24,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   protected final Map<String, String> dynamicHeaders = new HashMap<>();
 	
-  public KafkaStorageDriver
+  public KafkaStorageDriver(
       String testStepId,
       DataInput dataInput,
       Config storageConfig,
@@ -32,7 +32,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       int batchSize)
       throws IllegalConfigurationException {
     super(testStepId, dataInput, storageConfig, verifyFlag, batchSize);
-	final var KafkaConfig = storageConfig.configVal("driver-create");
+    final var KafkaConfig = storageConfig.configVal("driver-create");
     final var headersMap = KafkaConfig.<String>mapVal("headers");
     for (final var header : headersMap.entrySet()) {
       final var headerKey = header.getKey();
