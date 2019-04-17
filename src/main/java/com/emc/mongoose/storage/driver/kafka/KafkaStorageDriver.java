@@ -1,5 +1,6 @@
 package com.emc.mongoose.storage.driver.kafka;
 
+import static com.emc.mongoose.base.item.op.Operation.Status.INTERRUPTED;
 import static com.emc.mongoose.base.item.op.Operation.Status.SUCC;
 
 import com.emc.mongoose.base.config.IllegalConfigurationException;
@@ -12,12 +13,26 @@ import com.emc.mongoose.base.item.op.data.DataOperation;
 import com.emc.mongoose.base.item.op.path.PathOperation;
 import com.emc.mongoose.base.storage.Credential;
 import com.emc.mongoose.storage.driver.coop.CoopStorageDriverBase;
+import com.emc.mongoose.storage.driver.kafka.cache.AdminClientCreateFunction;
+import com.emc.mongoose.storage.driver.kafka.cache.AdminClientCreateFunctionImpl;
 import com.github.akurilov.confuse.Config;
 import java.io.IOException;
-import java.util.List;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 
 public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     extends CoopStorageDriverBase<I, O> {
+
+  private final Map<Properties, AdminClientCreateFunction> adminClientCreateFuncCache =
+      new ConcurrentHashMap<>();
+  private final Map<String, AdminClient> adminClientCache = new ConcurrentHashMap<>();
+  private final Map<String, NewTopic> topicCache = new ConcurrentHashMap<>();
 
   public KafkaStorageDriver(
       String testStepId,
@@ -36,8 +51,9 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       if (opType.equals(OpType.NOOP)) {
         submitNoop(op);
       }
+      var nodeAddr = op.nodeAddr();
       if (op instanceof DataOperation) {
-        submitRecordOperation((DataOperation) op, opType);
+        submitRecordOperation((DataOperation) op, opType, nodeAddr);
       } else if (op instanceof PathOperation) {
         submitTopicOperation((PathOperation) op, opType);
       } else {
@@ -47,7 +63,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     return true;
   }
 
-  private void submitRecordOperation(DataOperation op, OpType opType) {
+  private void submitRecordOperation(DataOperation op, OpType opType, final String nodeAddr) {
     switch (opType) {
       case CREATE:
         submitRecordCreateOperation();
@@ -61,7 +77,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         submitRecordDeleteOperation();
         break;
       case LIST:
-        throw new AssertionError("Not implemented");
+        submitRecordsListingOperation(op, nodeAddr);
       default:
         throw new AssertionError("Not implemented");
     }
@@ -72,6 +88,46 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private void submitRecordReadOperation() {}
 
   private void submitRecordCreateOperation() {}
+
+  private void submitRecordsListingOperation(final DataOperation recordOp, final String nodeAddr) {
+    try {
+      var adminConfig =
+          adminClientCreateFuncCache.computeIfAbsent(
+              createAdminConfig(nodeAddr), AdminClientCreateFunctionImpl::new);
+      var adminClient = adminClientCache.computeIfAbsent(nodeAddr, adminConfig);
+      var recordItem = recordOp.item();
+      var topicName = recordItem.name();
+
+      Properties props = new Properties();
+      props.put("bootstrap.servers", "localhost:9092");
+
+      var topics = adminClient.listTopics().names().get();
+      if (adminClient.listTopics().names().get().contains(topicName)) {
+        KafkaConsumer<String, String> consumer = new KafkaConsumer<String, String>(props);
+
+        var consumerRecords = consumer.poll(Duration.ofSeconds(10));
+        var records = consumerRecords.records(topicName);
+        recordOp.startRequest();
+        completeOperation((O) recordItem, SUCC);
+      } else {
+        completeOperation((O) recordItem, INTERRUPTED);
+      }
+
+      recordOp.startRequest();
+    } catch (final NullPointerException e) {
+      e.printStackTrace();
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    } catch (ExecutionException e) {
+      e.printStackTrace();
+    }
+  }
+
+  private Properties createAdminConfig(String nodeAddr) {
+    var adminConfig = new Properties();
+    adminConfig.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
+    return adminConfig;
+  }
 
   private void submitTopicOperation(PathOperation op, OpType opType) {
     switch (opType) {
