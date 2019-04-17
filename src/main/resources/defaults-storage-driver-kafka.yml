@@ -7,6 +7,10 @@ storage:
     create:
       key:
         enabled: false
+      headers:
+        Connection: Keep-Alive
+        Date: "#{date:formatNowRfc1123()}%{date:formatNowRfc1123()}"
+        User-Agent: "mongoose-storage-driver-kafka/not_defined"
     request:
       size: 1048576
     batch:

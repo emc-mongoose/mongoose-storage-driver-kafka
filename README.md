@@ -87,8 +87,8 @@ Scenario example:
 ```javascript
 var customKafkaHeadersConfig = {
     "storage" : {
-        "net" : {
-            "kafka" : {
+        "driver" : {
+            "create" : {
                 "headers" : {
                     "header-name-0" : "header_value_0",
                     "header-name-1" : "header_value_1",
@@ -112,8 +112,8 @@ Scenario example, note both the parameterized header name and value:
 ```javascript
 var varKafkaHeadersConfig = {
     "storage" : {
-        "net" : {
-            "kafka" : {
+        "driver" : {
+            "create" : {
                 "headers" : {
                     "x-amz-meta-${math:random(30) + 1}" : "${date:format("yyyy-MM-dd'T'HH:mm:ssZ").format(date:from(rnd.nextLong(time:millisSinceEpoch())))}"
                 }
