@@ -32,7 +32,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       int batchSize)
       throws IllegalConfigurationException {
     super(testStepId, dataInput, storageConfig, verifyFlag, batchSize);
-    final var KafkaConfig = storageConfig.configVal("driver-create");
+    final var driverConfig = storageConfig.configVal("driver");
     final var headersMap = KafkaConfig.<String>mapVal("headers");
     for (final var header : headersMap.entrySet()) {
       final var headerKey = header.getKey();
