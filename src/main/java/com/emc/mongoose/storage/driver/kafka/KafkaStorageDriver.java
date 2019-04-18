@@ -13,11 +13,15 @@ import com.emc.mongoose.base.item.op.path.PathOperation;
 import com.emc.mongoose.base.storage.Credential;
 import com.emc.mongoose.storage.driver.coop.CoopStorageDriverBase;
 import com.github.akurilov.confuse.Config;
+import java.io.EOFException;
 import java.io.IOException;
-import java.util.List;
+import java.util.*;
+import lombok.val;
 
 public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     extends CoopStorageDriverBase<I, O> {
+
+  private volatile boolean listWasCalled = false;
 
   public KafkaStorageDriver(
       String testStepId,
@@ -148,14 +152,23 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   @Override
   public List<I> list(
-      ItemFactory<I> itemFactory,
-      String path,
-      String prefix,
-      int idRadix,
-      I lastPrevItem,
-      int count)
+      final ItemFactory<I> itemFactory,
+      final String path,
+      final String prefix,
+      final int idRadix,
+      final I lastPrevItem,
+      final int count)
       throws IOException {
-    return null;
+
+    if (listWasCalled) {
+      throw new EOFException();
+    }
+
+    val buff = new ArrayList<I>(1);
+    buff.add(itemFactory.getItem(path + prefix, 0, 0));
+
+    listWasCalled = true;
+    return buff;
   }
 
   @Override
