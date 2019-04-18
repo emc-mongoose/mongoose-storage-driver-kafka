@@ -1,5 +1,7 @@
 package com.emc.mongoose.storage.driver.kafka;
 
+import static com.emc.mongoose.base.item.op.Operation.Status.SUCC;
+
 import com.emc.mongoose.base.config.IllegalConfigurationException;
 import com.emc.mongoose.base.data.DataInput;
 import com.emc.mongoose.base.item.Item;
@@ -11,8 +13,10 @@ import com.emc.mongoose.base.item.op.path.PathOperation;
 import com.emc.mongoose.base.storage.Credential;
 import com.emc.mongoose.storage.driver.coop.CoopStorageDriverBase;
 import com.github.akurilov.confuse.Config;
+import java.io.EOFException;
 import java.io.IOException;
-import java.util.List;
+import java.util.*;
+import lombok.val;
 import java.util.Map;
 import java.util.HashMap;
 import static com.github.akurilov.commons.io.el.ExpressionInput.ASYNC_MARKER;
@@ -22,8 +26,9 @@ import static com.github.akurilov.commons.io.el.ExpressionInput.SYNC_MARKER;
 public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     extends CoopStorageDriverBase<I, O> {
 
-  protected final Map<String, String> dynamicHeaders = new HashMap<>();
-	
+  protected final Map<String, String> dynamicHeaders = new HashMap<>();	
+  private volatile boolean listWasCalled = false;
+
   public KafkaStorageDriver(
       String testStepId,
       DataInput dataInput,
@@ -33,7 +38,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       throws IllegalConfigurationException {
     super(testStepId, dataInput, storageConfig, verifyFlag, batchSize);
     final var driverConfig = storageConfig.configVal("driver");
-    final var headersMap = KafkaConfig.<String>mapVal("headers");
+    final var headersMap = driverConfig.<String>mapVal("headers");
     for (final var header : headersMap.entrySet()) {
       final var headerKey = header.getKey();
       final var headerValue = header.getValue();
@@ -54,6 +59,9 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   protected final boolean submit(final O op) throws IllegalStateException {
     if (concurrencyThrottle.tryAcquire()) {
       final var opType = op.type();
+      if (opType.equals(OpType.NOOP)) {
+        submitNoop(op);
+      }
       if (op instanceof DataOperation) {
         submitRecordOperation((DataOperation) op, opType);
       } else if (op instanceof PathOperation) {
@@ -117,6 +125,20 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   private void submitTopicDeleteOperation() {}
 
+  private void submitNoop(final O op) {
+    op.startRequest();
+    completeOperation(op, SUCC);
+  }
+
+  private boolean completeOperation(final O op, final Operation.Status status) {
+    concurrencyThrottle.release();
+    op.status(status);
+    op.finishRequest();
+    op.startResponse();
+    op.finishResponse();
+    return handleCompleted(op);
+  }
+
   @Override
   protected final int submit(final List<O> ops, final int from, final int to)
       throws IllegalStateException {
@@ -152,14 +174,23 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   @Override
   public List<I> list(
-      ItemFactory<I> itemFactory,
-      String path,
-      String prefix,
-      int idRadix,
-      I lastPrevItem,
-      int count)
+      final ItemFactory<I> itemFactory,
+      final String path,
+      final String prefix,
+      final int idRadix,
+      final I lastPrevItem,
+      final int count)
       throws IOException {
-    return null;
+
+    if (listWasCalled) {
+      throw new EOFException();
+    }
+
+    val buff = new ArrayList<I>(1);
+    buff.add(itemFactory.getItem(path + prefix, 0, 0));
+
+    listWasCalled = true;
+    return buff;
   }
 
   @Override
