@@ -45,7 +45,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
               || headerValue.contains(INIT_MARKER)) {
         dynamicHeaders.put(headerKey, headerValue);
       } else {
-        continue;
+        throw new IllegalArgumentException("Unsupported key");
       }
     }
   }
