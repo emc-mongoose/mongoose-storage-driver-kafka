@@ -17,13 +17,12 @@ import com.emc.mongoose.storage.driver.coop.CoopStorageDriverBase;
 import com.emc.mongoose.storage.driver.kafka.cache.AdminClientCreateFunctionImpl;
 import com.emc.mongoose.storage.driver.kafka.cache.ProducerCreateFunctionImpl;
 import com.github.akurilov.confuse.Config;
+import java.io.EOFException;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.val;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -52,6 +51,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       new ConcurrentHashMap<>();
   private final Map<String, KafkaProducer> producerCache = new ConcurrentHashMap<>();
   private final Map<String, NewTopic> topicCache = new ConcurrentHashMap<>();
+  private volatile boolean listWasCalled = false;
 
   public KafkaStorageDriver(
       String testStepId,
@@ -286,14 +286,23 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   @Override
   public List<I> list(
-      ItemFactory<I> itemFactory,
-      String path,
-      String prefix,
-      int idRadix,
-      I lastPrevItem,
-      int count)
+      final ItemFactory<I> itemFactory,
+      final String path,
+      final String prefix,
+      final int idRadix,
+      final I lastPrevItem,
+      final int count)
       throws IOException {
-    return null;
+
+    if (listWasCalled) {
+      throw new EOFException();
+    }
+
+    val buff = new ArrayList<I>(1);
+    buff.add(itemFactory.getItem(path + prefix, 0, 0));
+
+    listWasCalled = true;
+    return buff;
   }
 
   @Override
