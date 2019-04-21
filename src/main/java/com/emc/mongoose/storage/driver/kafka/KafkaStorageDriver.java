@@ -18,6 +18,7 @@ import lombok.val;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.logging.log4j.Level;
 
@@ -50,6 +51,22 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   }
 
   private final AdminClient adminClient = AdminClient.create(new Properties()); // will be in constructor
+
+  KafkaFuture.BiConsumer<Void, Throwable> kafkaTopicFuture (String topicName, PathOperation op) {
+    return ((KafkaFuture.BiConsumer<Void, Throwable>) (result, exception) -> {
+      if (exception != null) {
+        if (!(exception.getCause() instanceof TopicExistsException)) {
+          LogUtil.exception(Level.DEBUG, exception, "{}: the topic already exists", stepId);
+          KafkaStorageDriver.this.completeOperation((O) op, FAIL_IO);
+        }
+        KafkaStorageDriver.this.completeFailedOperation((O) op, exception);
+      } else {
+        //topicCache.put(topicName, newTopic)
+        KafkaStorageDriver.this.handleTopicCreate(topicName, (PathOperation) op);
+      }
+    });
+  }
+
 
   @Override
   protected final boolean submit(final O op) throws IllegalStateException {
@@ -119,19 +136,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       val newTopic = new NewTopic(topicName, 1, (short) 1);
       val createTopicsResult = adminClient.createTopics(Collections.singleton(newTopic));
       val createTopicFuture = createTopicsResult.values().get(topicName).
-              whenComplete((result, exception) -> {
-                if(exception != null) {
-                  if (!(exception.getCause() instanceof TopicExistsException)) {
-                    LogUtil.exception(Level.DEBUG, exception, "{}: the topic already exists", stepId);
-                    completeOperation((O) op, FAIL_IO);
-                  }
-                  completeFailedOperation((O) op, exception);
-                }
-                else {
-                  //topicCache.put(topicName, newTopic)
-                  handleTopicCreate(topicName, op);
-                }
-              });
+              whenComplete(kafkaTopicFuture(topicName, op));
     } catch (final NullPointerException e) {
       if (!isStarted()) {
         completeOperation((O) op, INTERRUPTED);
