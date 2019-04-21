@@ -1,5 +1,7 @@
 package com.emc.mongoose.storage.driver.kafka;
 
+import static com.emc.mongoose.base.item.op.Operation.Status.SUCC;
+
 import com.emc.mongoose.base.config.IllegalConfigurationException;
 import com.emc.mongoose.base.data.DataInput;
 import com.emc.mongoose.base.item.Item;
@@ -22,13 +24,11 @@ import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.logging.log4j.Level;
 
+import java.io.EOFException;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
@@ -39,6 +39,8 @@ import static com.emc.mongoose.base.item.op.Operation.Status.FAIL_IO;
 
 public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     extends CoopStorageDriverBase<I, O> {
+
+  private volatile boolean listWasCalled = false;
 
   public KafkaStorageDriver(
       String testStepId,
@@ -72,6 +74,9 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   protected final boolean submit(final O op) throws IllegalStateException {
     if (concurrencyThrottle.tryAcquire()) {
       final var opType = op.type();
+      if (opType.equals(OpType.NOOP)) {
+        submitNoop(op);
+      }
       if (op instanceof DataOperation) {
         submitRecordOperation((DataOperation) op, opType);
       } else if (op instanceof PathOperation) {
@@ -157,6 +162,25 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   private void submitTopicDeleteOperation() {}
 
+  private void submitNoop(final O op) {
+    op.startRequest();
+    completeOperation(op, SUCC);
+  }
+
+  private boolean completeOperation(final O op, final Operation.Status status) {
+    concurrencyThrottle.release();
+    op.status(status);
+    op.finishRequest();
+    op.startResponse();
+    op.finishResponse();
+    return handleCompleted(op);
+  }
+
+  boolean completeFailedOperation(final O op, final Throwable thrown) {
+    LogUtil.exception(Level.DEBUG, thrown, "{}: unexpected load operation failure", stepId);
+    return completeOperation(op, FAIL_UNKNOWN);
+  }
+
   @Override
   protected final int submit(final List<O> ops, final int from, final int to)
       throws IllegalStateException {
@@ -179,20 +203,6 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     return opsCount;
   }
 
-  boolean completeOperation(final O op, final Operation.Status status) {
-    concurrencyThrottle.release();
-    op.status(status);
-    op.finishRequest();
-    op.startResponse();
-    op.finishResponse();
-    return handleCompleted(op);
-  }
-
-  boolean completeFailedOperation(final O op, final Throwable thrown) {
-    LogUtil.exception(Level.DEBUG, thrown, "{}: unexpected load operation failure", stepId);
-    return completeOperation(op, FAIL_UNKNOWN);
-  }
-
   @Override
   protected String requestNewPath(String path) {
     throw new AssertionError("Should not be invoked");
@@ -206,14 +216,23 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   @Override
   public List<I> list(
-      ItemFactory<I> itemFactory,
-      String path,
-      String prefix,
-      int idRadix,
-      I lastPrevItem,
-      int count)
+      final ItemFactory<I> itemFactory,
+      final String path,
+      final String prefix,
+      final int idRadix,
+      final I lastPrevItem,
+      final int count)
       throws IOException {
-    return null;
+
+    if (listWasCalled) {
+      throw new EOFException();
+    }
+
+    val buff = new ArrayList<I>(1);
+    buff.add(itemFactory.getItem(path + prefix, 0, 0));
+
+    listWasCalled = true;
+    return buff;
   }
 
   @Override

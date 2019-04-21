@@ -34,7 +34,7 @@ public class KafkaNodeContainer implements Closeable {
         DOCKER_CLIENT
             .createContainerCmd(IMAGE_NAME)
             .withName("kafka")
-            .withNetworkMode("host") // --network kafka-net
+            .withNetworkMode("host")
             .withExposedPorts(ExposedPort.tcp(9010), ExposedPort.tcp(9092))
             .withEntrypoint("./bin/kafka-server-start.sh")
             .withCmd(
