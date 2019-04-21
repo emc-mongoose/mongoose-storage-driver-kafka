@@ -15,18 +15,22 @@ import com.emc.mongoose.base.logging.LogUtil;
 import com.emc.mongoose.base.storage.Credential;
 import com.emc.mongoose.storage.driver.coop.CoopStorageDriverBase;
 import com.emc.mongoose.storage.driver.kafka.cache.AdminClientCreateFunctionImpl;
+import com.emc.mongoose.storage.driver.kafka.cache.ConsumerCreateFunctionImpl;
 import com.emc.mongoose.storage.driver.kafka.cache.ProducerCreateFunctionImpl;
 import com.emc.mongoose.storage.driver.kafka.cache.TopicCreateFunctionImpl;
 import com.github.akurilov.confuse.Config;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.val;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.*;
 import org.apache.logging.log4j.Level;
 
@@ -55,6 +59,14 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     new ConcurrentHashMap<>();
   private final Map<String, NewTopic> topicCache = new ConcurrentHashMap<>();
   private volatile boolean listWasCalled = false;
+
+  private final Map<String, Properties> consumerConfigCache = new ConcurrentHashMap<>();
+  private final Map<Properties, ConsumerCreateFunctionImpl> consumerCreateFuncCache =
+      new ConcurrentHashMap<>();
+  private final Map<String, KafkaConsumer> consumerCache = new ConcurrentHashMap<>();
+  //  private final Map<AdminClient, TopicCreateFunctionImpl> topicCreateFuncCache =
+  //          new ConcurrentHashMap<>();
+  //  private final Map<String, NewTopic> topicCache = new ConcurrentHashMap<>();
 
   public KafkaStorageDriver(
     String testStepId,
@@ -108,7 +120,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         submitRecordCreateOperation(op, nodeAddr);
         break;
       case READ:
-        submitRecordReadOperation();
+        submitRecordReadOperation(op, nodeAddr);
         break;
       case UPDATE:
         throw new AssertionError("Not implemented");
@@ -124,7 +136,29 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   private void submitRecordDeleteOperation() {}
 
-  private void submitRecordReadOperation() {}
+  private void submitRecordReadOperation(final DataOperation recordOp, String nodeAddr) {
+    try {
+      val config = configCache.computeIfAbsent(nodeAddr, this::createConfig);
+      val adminConfig =
+          adminClientCreateFuncCache.computeIfAbsent(config, AdminClientCreateFunctionImpl::new);
+      val adminClient = adminClientCache.computeIfAbsent(nodeAddr, adminConfig);
+
+      val consConfig = consumerConfigCache.computeIfAbsent(nodeAddr, this::createConsumerConfig);
+      val consumerConfig =
+          consumerCreateFuncCache.computeIfAbsent(consConfig, ConsumerCreateFunctionImpl::new);
+      val kafkaConsumer = consumerCache.computeIfAbsent(nodeAddr, consumerConfig);
+
+      val result = kafkaConsumer.poll(Duration.ofSeconds(10));
+      recordOp.startRequest();
+    } catch (final NullPointerException e) {
+      completeFailedOperation((O) recordOp, e);
+    } catch (final Throwable thrown) {
+      if (thrown instanceof InterruptedException) {
+        throwUnchecked(thrown);
+      }
+      completeFailedOperation((O) recordOp, thrown);
+    }
+  }
 
   boolean completeFailedOperation(final O op, final Throwable thrown) {
     LogUtil.exception(Level.DEBUG, thrown, "{}: operation failed: {}", stepId, op);
@@ -251,6 +285,16 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     op.startRequest();
     completeOperation(op, SUCC);
   }
+
+  private Properties createConsumerConfig(String nodeAddr) {
+    var consumerConfig = new Properties();
+    consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
+    consumerConfig.put(ConsumerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
+    consumerConfig.put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
+    consumerConfig.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, this.batch);
+    return consumerConfig;
+  }
+
 
   @Override
   protected final int submit(final List<O> ops, final int from, final int to)
