@@ -6,6 +6,8 @@ import com.emc.mongoose.base.config.IllegalConfigurationException;
 import com.emc.mongoose.base.data.DataInput;
 import com.emc.mongoose.base.item.Item;
 import com.emc.mongoose.base.item.ItemFactory;
+import com.emc.mongoose.base.item.PathItem;
+import com.emc.mongoose.base.item.PathItemFactoryImpl;
 import com.emc.mongoose.base.item.op.OpType;
 import com.emc.mongoose.base.item.op.Operation;
 import com.emc.mongoose.base.item.op.data.DataOperation;
@@ -13,11 +15,21 @@ import com.emc.mongoose.base.item.op.path.PathOperation;
 import com.emc.mongoose.base.storage.Credential;
 import com.emc.mongoose.storage.driver.coop.CoopStorageDriverBase;
 import com.github.akurilov.confuse.Config;
+
 import java.io.IOException;
+import java.util.Collections;
+import java.util.concurrent.ExecutionException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
+
+import org.apache.kafka.clients.admin.*;
+
 
 public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     extends CoopStorageDriverBase<I, O> {
+
+  private AdminClient adminClient;
 
   public KafkaStorageDriver(
       String testStepId,
@@ -155,6 +167,24 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       I lastPrevItem,
       int count)
       throws IOException {
+
+    List<I> listTopic = new ArrayList<>();
+    
+    if (itemFactory instanceof PathItemFactoryImpl) {
+      Properties properties = new Properties();
+      adminClient = KafkaAdminClient.create(properties);
+      ListTopicsResult result = adminClient.listTopics();
+      try {
+        for (String topicName : result.names().get()) {
+          listTopic.add(itemFactory.getItem(topicName, 0, 0));
+        }
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      } catch (ExecutionException e) {
+        e.printStackTrace();
+      }
+      return listTopic;
+    }
     return null;
   }
 
