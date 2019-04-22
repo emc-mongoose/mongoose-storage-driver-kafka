@@ -64,9 +64,6 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private final Map<Properties, ConsumerCreateFunctionImpl> consumerCreateFuncCache =
       new ConcurrentHashMap<>();
   private final Map<String, KafkaConsumer> consumerCache = new ConcurrentHashMap<>();
-  //  private final Map<AdminClient, TopicCreateFunctionImpl> topicCreateFuncCache =
-  //          new ConcurrentHashMap<>();
-  //  private final Map<String, NewTopic> topicCache = new ConcurrentHashMap<>();
 
   public KafkaStorageDriver(
     String testStepId,
@@ -152,11 +149,6 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       recordOp.startRequest();
     } catch (final NullPointerException e) {
       completeFailedOperation((O) recordOp, e);
-    } catch (final Throwable thrown) {
-      if (thrown instanceof InterruptedException) {
-        throwUnchecked(thrown);
-      }
-      completeFailedOperation((O) recordOp, thrown);
     }
   }
 
