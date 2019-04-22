@@ -14,7 +14,7 @@ storage:
     buffer:
       memory: 33554432
     compression:
-      type: null
+      type: none
   net:
     sndBuf: 131072
     rcvBuf: 32768
