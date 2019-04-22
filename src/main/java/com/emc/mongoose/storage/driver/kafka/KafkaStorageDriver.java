@@ -12,6 +12,8 @@ import com.emc.mongoose.base.data.DataInput;
 import com.emc.mongoose.base.item.DataItem;
 import com.emc.mongoose.base.item.Item;
 import com.emc.mongoose.base.item.ItemFactory;
+import com.emc.mongoose.base.item.PathItem;
+import com.emc.mongoose.base.item.PathItemFactoryImpl;
 import com.emc.mongoose.base.item.op.OpType;
 import com.emc.mongoose.base.item.op.Operation;
 import com.emc.mongoose.base.item.op.Operation.Status;
@@ -27,6 +29,7 @@ import com.emc.mongoose.storage.driver.kafka.cache.TopicCreateFunctionImpl;
 import com.emc.mongoose.storage.driver.preempt.PreemptStorageDriverBase;
 import com.github.akurilov.commons.concurrent.ContextAwareThreadFactory;
 import com.github.akurilov.confuse.Config;
+
 import java.io.EOFException;
 import java.io.IOException;
 import java.time.Duration;
@@ -36,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -80,6 +84,8 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   protected final Map<String, String> sharedHeaders = new HashMap<>();
   protected final Map<String, String> dynamicHeaders = new HashMap<>();
   private volatile boolean listWasCalled = false;
+
+  private AdminClient adminClient;
 
   public KafkaStorageDriver(
       String testStepId,
@@ -494,11 +500,28 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       final I lastPrevItem,
       final int count)
       throws IOException {
+    
     if (listWasCalled) {
       throw new EOFException();
     }
+
     val buff = new ArrayList<I>(1);
-    buff.add(itemFactory.getItem(path + prefix, 0, 0));
+
+    if (itemFactory instanceof PathItemFactoryImpl) {
+      val properties = configCache.get("");
+      val adminClient = adminClientCache.get("");
+      ListTopicsResult result = adminClient.listTopics();
+      try {
+        for (String topicName : result.names().get()) {
+          buff.add(itemFactory.getItem(path + prefix + topicName, 0, 0));
+        }
+      } catch (InterruptedException e) {
+        throwUnchecked(e);
+      } catch (ExecutionException e) {
+        LogUtil.exception(Level.INFO, e, e.getMessage());
+      }
+    }
+
     listWasCalled = true;
     return buff;
   }
