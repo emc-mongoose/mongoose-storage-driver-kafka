@@ -15,6 +15,7 @@ import com.emc.mongoose.base.item.op.path.PathOperation;
 import com.emc.mongoose.base.storage.Credential;
 import com.emc.mongoose.storage.driver.coop.CoopStorageDriverBase;
 import com.github.akurilov.confuse.Config;
+<<<<<<< HEAD
 
 import java.io.IOException;
 import java.util.Collections;
@@ -25,11 +26,21 @@ import java.util.Properties;
 
 import org.apache.kafka.clients.admin.*;
 
+=======
+import java.io.EOFException;
+import java.io.IOException;
+import java.util.*;
+import lombok.val;
+>>>>>>> af489ee47da1b80cea8228a89422bff0250e48c3
 
 public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     extends CoopStorageDriverBase<I, O> {
 
+<<<<<<< HEAD
   private AdminClient adminClient;
+=======
+  private volatile boolean listWasCalled = false;
+>>>>>>> af489ee47da1b80cea8228a89422bff0250e48c3
 
   public KafkaStorageDriver(
       String testStepId,
@@ -160,32 +171,37 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   @Override
   public List<I> list(
-      ItemFactory<I> itemFactory,
-      String path,
-      String prefix,
-      int idRadix,
-      I lastPrevItem,
-      int count)
+      final ItemFactory<I> itemFactory,
+      final String path,
+      final String prefix,
+      final int idRadix,
+      final I lastPrevItem,
+      final int count)
       throws IOException {
-
-    List<I> listTopic = new ArrayList<>();
     
+    if (listWasCalled) {
+      throw new EOFException();
+    }
+
+    val buff = new ArrayList<I>(1);
+
     if (itemFactory instanceof PathItemFactoryImpl) {
       Properties properties = new Properties();
       adminClient = KafkaAdminClient.create(properties);
       ListTopicsResult result = adminClient.listTopics();
       try {
         for (String topicName : result.names().get()) {
-          listTopic.add(itemFactory.getItem(topicName, 0, 0));
+          buff.add(itemFactory.getItem(path + prefix + topicName, 0, 0));
         }
       } catch (InterruptedException e) {
         e.printStackTrace();
       } catch (ExecutionException e) {
         e.printStackTrace();
       }
-      return listTopic;
     }
-    return null;
+
+    listWasCalled = true;
+    return buff;
   }
 
   @Override
