@@ -168,18 +168,18 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>> extends 
         kafkaProducer.send(new ProducerRecord<>(topicName, producerKey, recordItem), (metadata, exception)->{
           if (exception != null) {
             recordOp.countBytesDone(recordItem.size());
-            completeOperation(recordOp, SUCC);
+            completeOperation((O)recordOp, SUCC);
           } else {
-            completeFailedOperation(recordOp, exception);
+            completeFailedOperation((O)recordOp, exception);
           }
         });
       } else {
         kafkaProducer.send(new ProducerRecord<>(topicName, recordItem), (metadata, exception)->{
           if (exception != null) {
             recordOp.countBytesDone(recordItem.size());
-            completeOperation(recordOp, SUCC);
+            completeOperation((O)recordOp, SUCC);
           } else {
-            completeFailedOperation(recordOp, exception);
+            completeFailedOperation((O)recordOp, exception);
           }
         });
       }
