@@ -15,32 +15,20 @@ import com.emc.mongoose.base.item.op.path.PathOperation;
 import com.emc.mongoose.base.storage.Credential;
 import com.emc.mongoose.storage.driver.coop.CoopStorageDriverBase;
 import com.github.akurilov.confuse.Config;
-<<<<<<< HEAD
-
-import java.io.IOException;
-import java.util.Collections;
-import java.util.concurrent.ExecutionException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
 
 import org.apache.kafka.clients.admin.*;
 
-=======
 import java.io.EOFException;
 import java.io.IOException;
 import java.util.*;
 import lombok.val;
->>>>>>> af489ee47da1b80cea8228a89422bff0250e48c3
 
 public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     extends CoopStorageDriverBase<I, O> {
 
-<<<<<<< HEAD
   private AdminClient adminClient;
-=======
   private volatile boolean listWasCalled = false;
->>>>>>> af489ee47da1b80cea8228a89422bff0250e48c3
+
 
   public KafkaStorageDriver(
       String testStepId,
