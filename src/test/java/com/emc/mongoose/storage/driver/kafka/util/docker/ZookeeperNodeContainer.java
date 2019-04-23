@@ -23,16 +23,11 @@ public class ZookeeperNodeContainer implements Closeable {
       DOCKER_CLIENT.pullImageCmd(IMAGE_NAME).exec(new PullImageResultCallback()).awaitCompletion();
     }
 
-    //    final CreateNetworkResponse network =
-    //        DOCKER_CLIENT.createNetworkCmd().withName("kafka-net").exec();
-    //    NETWORK_ID = network.getId();
-    //    LOG.info("docker network create " + NETWORK_ID + "...");
-
     final CreateContainerResponse container =
         DOCKER_CLIENT
             .createContainerCmd(IMAGE_NAME)
             .withName("zookeeper")
-            .withNetworkMode("host") // --network kafka-net
+            .withNetworkMode("host")
             .withAttachStderr(true)
             .withAttachStdout(true)
             .exec();
@@ -53,9 +48,5 @@ public class ZookeeperNodeContainer implements Closeable {
       DOCKER_CLIENT.removeContainerCmd(ZOOKEEPER_CONTAINER_ID).exec();
       ZOOKEEPER_CONTAINER_ID = null;
     }
-    //    if (NETWORK_ID != null) {
-    //      LOG.info("docker network rm " + NETWORK_ID + "...");
-    //      DOCKER_CLIENT.removeNetworkCmd(NETWORK_ID).exec();
-    //    }
   }
 }
