@@ -1,7 +1,6 @@
 package com.emc.mongoose.storage.driver.kafka;
 
-import static com.emc.mongoose.base.item.op.Operation.Status.FAIL_UNKNOWN;
-import static com.emc.mongoose.base.item.op.Operation.Status.SUCC;
+import static com.emc.mongoose.base.item.op.Operation.Status.*;
 import static com.github.akurilov.commons.lang.Exceptions.throwUnchecked;
 
 import com.emc.mongoose.base.config.IllegalConfigurationException;
@@ -36,8 +35,6 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private final String[] endpointAddrs;
   private final int nodePort;
   private final boolean key;
-  private final int numPartition;
-  private final short replicationFactor;
   private final int requestSizeLimit;
   private final int batch;
   private final int sndBuf;
@@ -80,8 +77,8 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     this.sndBuf = netConfig.intVal("sndBuf");
     this.rcvBuf = netConfig.intVal("rcvBuf");
     this.linger = netConfig.intVal("linger");
-    this.numPartition = 1;
-    this.replicationFactor = 1;
+    this.requestAuthTokenFunc = null;
+    this.requestNewPathFunc = null;
   }
 
   @Override
@@ -170,7 +167,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
           producerCreateFuncCache.computeIfAbsent(config, ProducerCreateFunctionImpl::new);
       val kafkaProducer = producerCache.computeIfAbsent(nodeAddr, producerConfig);
       val recordItem = recordOp.item();
-      val topicName = recordItem.name();
+      val topicName = recordOp.dstPath();
       val topicCreateFunc =
           topicCreateFuncCache.computeIfAbsent(adminClient, TopicCreateFunctionImpl::new);
       val topic = topicCache.computeIfAbsent(topicName, topicCreateFunc);
@@ -179,7 +176,12 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         kafkaProducer.send(
             new ProducerRecord<>(topicName, producerKey, recordItem),
             (metadata, exception) -> {
-              if (exception != null) {
+              if (exception == null) {
+                try {
+                  recordOp.countBytesDone(recordItem.size());
+                } catch (IOException e) {
+                  e.printStackTrace();
+                }
                 completeOperation((O) recordOp, SUCC);
               } else {
                 completeFailedOperation((O) recordOp, exception);
@@ -189,7 +191,12 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         kafkaProducer.send(
             new ProducerRecord<>(topicName, recordItem),
             (metadata, exception) -> {
-              if (exception != null) {
+              if (exception == null) {
+                try {
+                  recordOp.countBytesDone(recordItem.size());
+                } catch (IOException e) {
+                  e.printStackTrace();
+                }
                 completeOperation((O) recordOp, SUCC);
               } else {
                 completeFailedOperation((O) recordOp, exception);
@@ -198,6 +205,11 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       }
       recordOp.startRequest();
     } catch (final NullPointerException e) {
+      if (!isStarted()) {
+        completeOperation((O) recordOp, INTERRUPTED);
+      } else {
+        completeFailedOperation((O) recordOp, e);
+      }
       completeFailedOperation((O) recordOp, e);
     } catch (final Throwable thrown) {
       if (thrown instanceof InterruptedException) {
