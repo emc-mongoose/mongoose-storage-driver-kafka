@@ -30,6 +30,7 @@ import lombok.val;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.*;
 import org.apache.logging.log4j.Level;
@@ -146,8 +147,15 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       val kafkaConsumer = consumerCache.computeIfAbsent(nodeAddr, consumerConfig);
 
       val result = kafkaConsumer.poll(Duration.ofSeconds(10));
+      val record = result.iterator();
+      val recordrec = (ConsumerRecord) record.next();
+      recordrec.value();
+      val recItem = recordOp.item();
+      recItem.size();
+      recordOp.countBytesDone(recItem.size());
+
       recordOp.startRequest();
-    } catch (final NullPointerException e) {
+    } catch (final NullPointerException | IOException e) {
       completeFailedOperation((O) recordOp, e);
     }
   }
@@ -283,7 +291,8 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
     consumerConfig.put(ConsumerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
     consumerConfig.put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
-    consumerConfig.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, this.batch);
+    consumerConfig.put(
+        ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 1); // to read only one record at the time
     return consumerConfig;
   }
 
