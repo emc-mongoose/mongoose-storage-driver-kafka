@@ -17,7 +17,34 @@ import com.emc.mongoose.storage.driver.coop.CoopStorageDriverBase;
 import com.emc.mongoose.storage.driver.kafka.cache.AdminClientCreateFunctionImpl;
 import com.emc.mongoose.storage.driver.kafka.cache.ProducerCreateFunctionImpl;
 import com.emc.mongoose.storage.driver.kafka.cache.TopicCreateFunctionImpl;
-import com.github.akurilov.confuse.Config;
+import com.github.akurilov.confuse.Config;21
+
+​
+
+22
+
+import java.io.EOFException;
+
+23
+
+import java.io.IOException;
+
+24
+
+import java.util.*;
+
+25
+
+import java.util.concurrent.ConcurrentHashMap;
+
+26
+
+import java.util.concurrent.atomic.AtomicInteger;
+
+27
+
+import lombok.val;
+
 import java.io.EOFException;
 import java.io.IOException;
 import java.util.*;
@@ -89,6 +116,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       if (opType.equals(OpType.NOOP)) {
         submitNoop(op);
       }
+
       if (op instanceof DataOperation) {
         submitRecordOperation((DataOperation) op, opType, nodeAddr);
       } else if (op instanceof PathOperation) {
