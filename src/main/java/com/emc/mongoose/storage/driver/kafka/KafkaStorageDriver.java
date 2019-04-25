@@ -13,6 +13,7 @@ import com.emc.mongoose.base.item.op.path.PathOperation;
 import com.emc.mongoose.base.storage.Credential;
 import com.emc.mongoose.storage.driver.coop.CoopStorageDriverBase;
 import com.github.akurilov.confuse.Config;
+
 import java.io.EOFException;
 import java.io.IOException;
 import java.util.*;
@@ -37,9 +38,11 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   protected final boolean submit(final O op) throws IllegalStateException {
     if (concurrencyThrottle.tryAcquire()) {
       final var opType = op.type();
+
       if (opType.equals(OpType.NOOP)) {
         submitNoop(op);
       }
+
       if (op instanceof DataOperation) {
         submitRecordOperation((DataOperation) op, opType);
       } else if (op instanceof PathOperation) {
