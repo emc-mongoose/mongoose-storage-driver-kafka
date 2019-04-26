@@ -13,8 +13,6 @@ import com.github.akurilov.confuse.Config;
 import com.github.akurilov.confuse.SchemaProvider;
 import com.github.akurilov.confuse.io.yaml.YamlSchemaProviderBase;
 import java.io.InputStream;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 public class KafkaStorageDriverExtension<
@@ -39,8 +37,7 @@ public class KafkaStorageDriverExtension<
   private static final String DEFAULTS_FILE_NAME =
       "defaults-storage-driver-" + DRIVER_NAME + ".yml";
 
-  private static final List<String> RES_INSTALL_FILES =
-      Collections.unmodifiableList(Arrays.asList(DEFAULTS_FILE_NAME));
+  private static final List<String> RES_INSTALL_FILES = List.of("config/" + DEFAULTS_FILE_NAME);
 
   @Override
   public final String id() {
