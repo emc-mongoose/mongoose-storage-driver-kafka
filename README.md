@@ -82,4 +82,5 @@ Not supported
 
 **Notes:**
 > For reading: num.consumer.fetchers	- the number fetcher threads used to fetch data, default value = 1.
+
 > For recording: KafkaProducer contains thread, the number of threads is equal to the number of producers.
