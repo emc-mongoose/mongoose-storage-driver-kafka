@@ -11,6 +11,7 @@ import com.emc.mongoose.base.item.op.OpType;
 import com.emc.mongoose.base.item.op.Operation;
 import com.emc.mongoose.base.item.op.data.DataOperation;
 import com.emc.mongoose.base.item.op.path.PathOperation;
+import com.emc.mongoose.base.logging.Loggers;
 import com.emc.mongoose.base.logging.LogUtil;
 import com.emc.mongoose.base.storage.Credential;
 import com.emc.mongoose.storage.driver.coop.CoopStorageDriverBase;
@@ -26,6 +27,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import lombok.val;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -63,7 +65,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   private final Map<String, Properties> consumerConfigCache = new ConcurrentHashMap<>();
   private final Map<Properties, ConsumerCreateFunctionImpl> consumerCreateFuncCache =
-      new ConcurrentHashMap<>();
+          new ConcurrentHashMap<>();
   private final Map<String, KafkaConsumer> consumerCache = new ConcurrentHashMap<>();
 
   public KafkaStorageDriver(
@@ -138,12 +140,12 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     try {
       val config = configCache.computeIfAbsent(nodeAddr, this::createConfig);
       val adminConfig =
-          adminClientCreateFuncCache.computeIfAbsent(config, AdminClientCreateFunctionImpl::new);
+              adminClientCreateFuncCache.computeIfAbsent(config, AdminClientCreateFunctionImpl::new);
       val adminClient = adminClientCache.computeIfAbsent(nodeAddr, adminConfig);
 
       val consConfig = consumerConfigCache.computeIfAbsent(nodeAddr, this::createConsumerConfig);
       val consumerConfig =
-          consumerCreateFuncCache.computeIfAbsent(consConfig, ConsumerCreateFunctionImpl::new);
+              consumerCreateFuncCache.computeIfAbsent(consConfig, ConsumerCreateFunctionImpl::new);
       val kafkaConsumer = consumerCache.computeIfAbsent(nodeAddr, consumerConfig);
 
       val result = kafkaConsumer.poll(Duration.ofSeconds(10));
@@ -291,8 +293,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
     consumerConfig.put(ConsumerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
     consumerConfig.put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
-    consumerConfig.put(
-        ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 1); // to read only one record at the time
+    consumerConfig.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 1); // to read only one record at the time
     return consumerConfig;
   }
 
