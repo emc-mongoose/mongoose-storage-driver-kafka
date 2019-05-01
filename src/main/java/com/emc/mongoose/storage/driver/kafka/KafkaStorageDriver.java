@@ -1,6 +1,7 @@
 package com.emc.mongoose.storage.driver.kafka;
 
-import static com.emc.mongoose.base.item.op.Operation.Status.SUCC;
+import static com.emc.mongoose.base.item.op.Operation.Status.*;
+import static com.github.akurilov.commons.lang.Exceptions.throwUnchecked;
 
 import com.emc.mongoose.base.config.IllegalConfigurationException;
 import com.emc.mongoose.base.data.DataInput;
@@ -10,13 +11,24 @@ import com.emc.mongoose.base.item.op.OpType;
 import com.emc.mongoose.base.item.op.Operation;
 import com.emc.mongoose.base.item.op.data.DataOperation;
 import com.emc.mongoose.base.item.op.path.PathOperation;
+import com.emc.mongoose.base.logging.LogUtil;
 import com.emc.mongoose.base.storage.Credential;
 import com.emc.mongoose.storage.driver.coop.CoopStorageDriverBase;
+import com.emc.mongoose.storage.driver.kafka.cache.AdminClientCreateFunctionImpl;
+import com.emc.mongoose.storage.driver.kafka.cache.ProducerCreateFunctionImpl;
+import com.emc.mongoose.storage.driver.kafka.cache.TopicCreateFunctionImpl;
 import com.github.akurilov.confuse.Config;
+
 import java.io.EOFException;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.val;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.producer.*;
+import org.apache.logging.log4j.Level;
 import java.util.Map;
 import java.util.HashMap;
 import static com.github.akurilov.commons.io.el.ExpressionInput.ASYNC_MARKER;
@@ -24,21 +36,43 @@ import static com.github.akurilov.commons.io.el.ExpressionInput.INIT_MARKER;
 import static com.github.akurilov.commons.io.el.ExpressionInput.SYNC_MARKER;
 
 public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
-    extends CoopStorageDriverBase<I, O> {
+  extends CoopStorageDriverBase<I, O> {
 
-  protected final Map<String, String> dynamicHeaders = new HashMap<>();	
+  private final String[] endpointAddrs;
+  private final int nodePort;
+  private final boolean key;
+  private final int requestSizeLimit;
+  private final int batch;
+  private final int sndBuf;
+  private final int rcvBuf;
+  private final int linger;
+  private final long buffer;
+  private final String compression;
+  private final AtomicInteger rrc = new AtomicInteger(0);
+  private final Map<String, Properties> configCache = new ConcurrentHashMap<>();
+  private final Map<Properties, AdminClientCreateFunctionImpl> adminClientCreateFuncCache =
+    new ConcurrentHashMap<>();
+  private final Map<String, AdminClient> adminClientCache = new ConcurrentHashMap<>();
+  private final Map<Properties, ProducerCreateFunctionImpl> producerCreateFuncCache =
+    new ConcurrentHashMap<>();
+  private final Map<String, KafkaProducer> producerCache = new ConcurrentHashMap<>();
+  private final Map<AdminClient, TopicCreateFunctionImpl> topicCreateFuncCache =
+    new ConcurrentHashMap<>();
+  private final Map<String, NewTopic> topicCache = new ConcurrentHashMap<>();
+  protected final Map<String, String> dynamicHeaders = new HashMap<>();
+  protected final Map<String, String>  sharedHeaders = new HashMap<>();
   private volatile boolean listWasCalled = false;
 
   public KafkaStorageDriver(
-      String testStepId,
-      DataInput dataInput,
-      Config storageConfig,
-      boolean verifyFlag,
-      int batchSize)
-      throws IllegalConfigurationException {
+    String testStepId,
+    DataInput dataInput,
+    Config storageConfig,
+    boolean verifyFlag,
+    int batchSize)
+    throws IllegalConfigurationException {
     super(testStepId, dataInput, storageConfig, verifyFlag, batchSize);
-    final var driverConfig = storageConfig.configVal("driver");
-    final var headersMap = driverConfig.<String>mapVal("headers");
+    var driverConfig = storageConfig.configVal("driver");
+	final var headersMap = driverConfig.<String>mapVal("headers");
     for (final var header : headersMap.entrySet()) {
       final var headerKey = header.getKey();
       final var headerValue = header.getValue();
@@ -50,20 +84,37 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
               || headerValue.contains(INIT_MARKER)) {
         dynamicHeaders.put(headerKey, headerValue);
       } else {
-        throw new IllegalArgumentException("Unsupported key");
+        sharedHeaders.put(headerKey, headerValue);
       }
     }
+    this.key = driverConfig.boolVal("create-key-enabled");
+    this.requestSizeLimit = driverConfig.intVal("request-size");
+    this.batch = driverConfig.intVal("batch-size");
+    var netConfig = storageConfig.configVal("net");
+    this.buffer = driverConfig.longVal("buffer-memory");
+    this.compression = driverConfig.stringVal("compression-type");
+    var nodeConfig = netConfig.configVal("node");
+    this.nodePort = nodeConfig.intVal("port");
+    var endpointAddrList = nodeConfig.listVal("addrs");
+    this.endpointAddrs = endpointAddrList.toArray(new String[endpointAddrList.size()]);
+    this.sndBuf = netConfig.intVal("sndBuf");
+    this.rcvBuf = netConfig.intVal("rcvBuf");
+    this.linger = netConfig.intVal("linger");
+    this.requestAuthTokenFunc = null;
+    this.requestNewPathFunc = null;
   }
 
   @Override
   protected final boolean submit(final O op) throws IllegalStateException {
     if (concurrencyThrottle.tryAcquire()) {
-      final var opType = op.type();
+      val opType = op.type();
+      val nodeAddr = op.nodeAddr();
       if (opType.equals(OpType.NOOP)) {
         submitNoop(op);
       }
+
       if (op instanceof DataOperation) {
-        submitRecordOperation((DataOperation) op, opType);
+        submitRecordOperation((DataOperation) op, opType, nodeAddr);
       } else if (op instanceof PathOperation) {
         submitTopicOperation((PathOperation) op, opType);
       } else {
@@ -73,10 +124,10 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     return true;
   }
 
-  private void submitRecordOperation(DataOperation op, OpType opType) {
+  private void submitRecordOperation(DataOperation op, OpType opType, String nodeAddr) {
     switch (opType) {
       case CREATE:
-        submitRecordCreateOperation();
+        submitRecordCreateOperation(op, nodeAddr);
         break;
       case READ:
         submitRecordReadOperation();
@@ -97,7 +148,100 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   private void submitRecordReadOperation() {}
 
-  private void submitRecordCreateOperation() {}
+  boolean completeFailedOperation(final O op, final Throwable thrown) {
+    LogUtil.exception(Level.DEBUG, thrown, "{}: operation failed: {}", stepId, op);
+    return completeOperation(op, FAIL_UNKNOWN);
+  }
+
+  boolean completeOperation(final O op, final Operation.Status status) {
+    concurrencyThrottle.release();
+    op.status(status);
+    op.finishRequest();
+    op.startResponse();
+    op.finishResponse();
+    return handleCompleted(op);
+  }
+
+  private Properties createConfig(String nodeAddr) {
+    var producerConfig = new Properties();
+    producerConfig.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
+    producerConfig.put(ProducerConfig.BATCH_SIZE_CONFIG, this.batch);
+    producerConfig.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, this.requestSizeLimit);
+    producerConfig.put(ProducerConfig.BUFFER_MEMORY_CONFIG, this.buffer);
+    producerConfig.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, compression);
+    producerConfig.put(ProducerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
+    producerConfig.put(ProducerConfig.LINGER_MS_CONFIG, this.linger);
+    producerConfig.put(ProducerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
+    producerConfig.put(
+      ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+      "org.apache.kafka.common.serialization.StringSerializer");
+    producerConfig.put(
+      ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+      "com.emc.mongoose.storage.driver.kafka.io.DataItemSerializer");
+    return producerConfig;
+  }
+
+  private void submitRecordCreateOperation(final DataOperation recordOp, String nodeAddr) {
+    try {
+      val config = configCache.computeIfAbsent(nodeAddr, this::createConfig);
+      val adminConfig =
+        adminClientCreateFuncCache.computeIfAbsent(config, AdminClientCreateFunctionImpl::new);
+      val adminClient = adminClientCache.computeIfAbsent(nodeAddr, adminConfig);
+      val producerConfig =
+        producerCreateFuncCache.computeIfAbsent(config, ProducerCreateFunctionImpl::new);
+      val kafkaProducer = producerCache.computeIfAbsent(nodeAddr, producerConfig);
+      val recordItem = recordOp.item();
+      val topicName = recordOp.dstPath();
+      val topicCreateFunc =
+        topicCreateFuncCache.computeIfAbsent(adminClient, TopicCreateFunctionImpl::new);
+      val topic = topicCache.computeIfAbsent(topicName, topicCreateFunc);
+      if (key) {
+        val producerKey = recordItem.name();
+        kafkaProducer.send(
+          new ProducerRecord<>(topicName, producerKey, recordItem),
+          (metadata, exception) -> {
+            if (exception == null) {
+              try {
+                recordOp.countBytesDone(recordItem.size());
+              } catch (IOException e) {
+                e.printStackTrace();
+              }
+              completeOperation((O) recordOp, SUCC);
+            } else {
+              completeFailedOperation((O) recordOp, exception);
+            }
+          });
+      } else {
+        kafkaProducer.send(
+          new ProducerRecord<>(topicName, recordItem),
+          (metadata, exception) -> {
+            if (exception == null) {
+              try {
+                recordOp.countBytesDone(recordItem.size());
+              } catch (IOException e) {
+                e.printStackTrace();
+              }
+              completeOperation((O) recordOp, SUCC);
+            } else {
+              completeFailedOperation((O) recordOp, exception);
+            }
+          });
+      }
+      recordOp.startRequest();
+    } catch (final NullPointerException e) {
+      if (!isStarted()) {
+        completeOperation((O) recordOp, INTERRUPTED);
+      } else {
+        completeFailedOperation((O) recordOp, e);
+      }
+      completeFailedOperation((O) recordOp, e);
+    } catch (final Throwable thrown) {
+      if (thrown instanceof InterruptedException) {
+        throwUnchecked(thrown);
+      }
+      completeFailedOperation((O) recordOp, thrown);
+    }
+  }
 
   private void submitTopicOperation(PathOperation op, OpType opType) {
     switch (opType) {
@@ -130,18 +274,9 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     completeOperation(op, SUCC);
   }
 
-  private boolean completeOperation(final O op, final Operation.Status status) {
-    concurrencyThrottle.release();
-    op.status(status);
-    op.finishRequest();
-    op.startResponse();
-    op.finishResponse();
-    return handleCompleted(op);
-  }
-
   @Override
   protected final int submit(final List<O> ops, final int from, final int to)
-      throws IllegalStateException {
+    throws IllegalStateException {
     for (var i = from; i < to; i++) {
       if (!submit(ops.get(i))) {
         return i - from;
@@ -152,13 +287,28 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   @Override
   protected final int submit(final List<O> ops) throws IllegalStateException {
-    final var opsCount = ops.size();
+    val opsCount = ops.size();
     for (var i = 0; i < opsCount; i++) {
       if (!submit(ops.get(i))) {
         return i;
       }
     }
     return opsCount;
+  }
+
+  String nextEndpointAddr() {
+    return endpointAddrs[rrc.getAndIncrement() % endpointAddrs.length];
+  }
+
+  @Override
+  protected boolean prepare(final O operation) {
+    super.prepare(operation);
+    var endpointAddr = operation.nodeAddr();
+    if (endpointAddr == null) {
+      endpointAddr = nextEndpointAddr() + ":" + this.nodePort;
+      operation.nodeAddr(endpointAddr);
+    }
+    return true;
   }
 
   @Override
@@ -174,13 +324,13 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   @Override
   public List<I> list(
-      final ItemFactory<I> itemFactory,
-      final String path,
-      final String prefix,
-      final int idRadix,
-      final I lastPrevItem,
-      final int count)
-      throws IOException {
+    final ItemFactory<I> itemFactory,
+    final String path,
+    final String prefix,
+    final int idRadix,
+    final I lastPrevItem,
+    final int count)
+    throws IOException {
 
     if (listWasCalled) {
       throw new EOFException();
