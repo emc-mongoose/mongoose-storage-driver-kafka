@@ -59,8 +59,8 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private final Map<AdminClient, TopicCreateFunctionImpl> topicCreateFuncCache =
     new ConcurrentHashMap<>();
   private final Map<String, NewTopic> topicCache = new ConcurrentHashMap<>();
-  protected final Map<String, String> dynamicHeaders = new HashMap<>();
   protected final Map<String, String>  sharedHeaders = new HashMap<>();
+  protected final Map<String, String> dynamicHeaders = new HashMap<>();
   private volatile boolean listWasCalled = false;
 
   public KafkaStorageDriver(
