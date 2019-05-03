@@ -298,6 +298,20 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   }
 
   @Override
+  protected void doClose() throws IOException, IllegalStateException {
+    super.doClose();
+    configCache.clear();
+    adminClientCreateFuncCache.clear();
+    adminClientCache.values().forEach(AdminClient::close);
+    adminClientCache.clear();
+    producerCreateFuncCache.clear();
+    producerCache.values().forEach(KafkaProducer::close);
+    producerCache.clear();
+    topicCreateFuncCache.clear();
+    topicCache.clear();
+  }
+
+  @Override
   protected String requestNewAuthToken(Credential credential) {
 
     throw new AssertionError("Should not be invoked");
