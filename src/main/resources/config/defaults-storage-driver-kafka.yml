@@ -4,6 +4,8 @@ load:
     timeoutMillis: 300000
 storage:
   driver:
+    record:
+      batch: false
     create:
       key:
         enabled: false
