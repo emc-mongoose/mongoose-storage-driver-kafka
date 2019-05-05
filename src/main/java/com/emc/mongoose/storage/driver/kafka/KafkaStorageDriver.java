@@ -50,6 +50,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private final int linger;
   private final long buffer;
   private final String compression;
+  private final int readTimeout;
   private final AtomicInteger rrc = new AtomicInteger(0);
   private final Map<String, Properties> configCache = new ConcurrentHashMap<>();
   private final Map<Properties, AdminClientCreateFunctionImpl> adminClientCreateFuncCache =
@@ -90,6 +91,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     this.sndBuf = netConfig.intVal("sndBuf");
     this.rcvBuf = netConfig.intVal("rcvBuf");
     this.linger = netConfig.intVal("linger");
+    this.readTimeout = driverConfig.intVal("read-timeoutMillis");
     this.requestAuthTokenFunc = null;
     this.requestNewPathFunc = null;
   }
@@ -148,15 +150,16 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
               consumerCreateFuncCache.computeIfAbsent(consConfig, ConsumerCreateFunctionImpl::new);
       val kafkaConsumer = consumerCache.computeIfAbsent(nodeAddr, consumerConfig);
 
-      val result = kafkaConsumer.poll(Duration.ofSeconds(10));
-      val record = result.iterator();
-      val recordrec = (ConsumerRecord) record.next();
-      recordrec.value();
+      val result = kafkaConsumer.poll(Duration.ofMillis(readTimeout));
+      val record = (ConsumerRecord) result.iterator().next();
+
+      val bytesDone = record.serializedValueSize();
       val recItem = recordOp.item();
-      recItem.size();
+
+      recItem.size(bytesDone);
       recordOp.countBytesDone(recItem.size());
 
-      recordOp.startRequest();
+      completeOperation((O) recordOp, SUCC);
     } catch (final NullPointerException | IOException e) {
       completeFailedOperation((O) recordOp, e);
     }
@@ -176,7 +179,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     return handleCompleted(op);
   }
 
-  private Properties createConfig(String nodeAddr) {
+  Properties createConfig(String nodeAddr) {
     var producerConfig = new Properties();
     producerConfig.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
     producerConfig.put(ProducerConfig.BATCH_SIZE_CONFIG, this.batch);
@@ -288,7 +291,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     completeOperation(op, SUCC);
   }
 
-  private Properties createConsumerConfig(String nodeAddr) {
+  Properties createConsumerConfig(String nodeAddr) {
     var consumerConfig = new Properties();
     consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
     consumerConfig.put(ConsumerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
