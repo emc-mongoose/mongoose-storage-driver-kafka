@@ -11,7 +11,6 @@ import com.emc.mongoose.base.item.op.OpType;
 import com.emc.mongoose.base.item.op.Operation;
 import com.emc.mongoose.base.item.op.data.DataOperation;
 import com.emc.mongoose.base.item.op.path.PathOperation;
-import com.emc.mongoose.base.logging.Loggers;
 import com.emc.mongoose.base.logging.LogUtil;
 import com.emc.mongoose.base.storage.Credential;
 import com.emc.mongoose.storage.driver.coop.CoopStorageDriverBase;
@@ -20,14 +19,12 @@ import com.emc.mongoose.storage.driver.kafka.cache.ConsumerCreateFunctionImpl;
 import com.emc.mongoose.storage.driver.kafka.cache.ProducerCreateFunctionImpl;
 import com.emc.mongoose.storage.driver.kafka.cache.TopicCreateFunctionImpl;
 import com.github.akurilov.confuse.Config;
-
 import java.io.EOFException;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import lombok.val;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -38,7 +35,7 @@ import org.apache.kafka.clients.producer.*;
 import org.apache.logging.log4j.Level;
 
 public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
-  extends CoopStorageDriverBase<I, O> {
+    extends CoopStorageDriverBase<I, O> {
 
   private final String[] endpointAddrs;
   private final int nodePort;
@@ -54,28 +51,28 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private final AtomicInteger rrc = new AtomicInteger(0);
   private final Map<String, Properties> configCache = new ConcurrentHashMap<>();
   private final Map<Properties, AdminClientCreateFunctionImpl> adminClientCreateFuncCache =
-    new ConcurrentHashMap<>();
+      new ConcurrentHashMap<>();
   private final Map<String, AdminClient> adminClientCache = new ConcurrentHashMap<>();
   private final Map<Properties, ProducerCreateFunctionImpl> producerCreateFuncCache =
-    new ConcurrentHashMap<>();
+      new ConcurrentHashMap<>();
   private final Map<String, KafkaProducer> producerCache = new ConcurrentHashMap<>();
   private final Map<AdminClient, TopicCreateFunctionImpl> topicCreateFuncCache =
-    new ConcurrentHashMap<>();
+      new ConcurrentHashMap<>();
   private final Map<String, NewTopic> topicCache = new ConcurrentHashMap<>();
   private volatile boolean listWasCalled = false;
 
   private final Map<String, Properties> consumerConfigCache = new ConcurrentHashMap<>();
   private final Map<Properties, ConsumerCreateFunctionImpl> consumerCreateFuncCache =
-          new ConcurrentHashMap<>();
+      new ConcurrentHashMap<>();
   private final Map<String, KafkaConsumer> consumerCache = new ConcurrentHashMap<>();
 
   public KafkaStorageDriver(
-    String testStepId,
-    DataInput dataInput,
-    Config storageConfig,
-    boolean verifyFlag,
-    int batchSize)
-    throws IllegalConfigurationException {
+      String testStepId,
+      DataInput dataInput,
+      Config storageConfig,
+      boolean verifyFlag,
+      int batchSize)
+      throws IllegalConfigurationException {
     super(testStepId, dataInput, storageConfig, verifyFlag, batchSize);
     var driverConfig = storageConfig.configVal("driver");
     this.key = driverConfig.boolVal("create-key-enabled");
@@ -142,17 +139,16 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     try {
       val config = configCache.computeIfAbsent(nodeAddr, this::createConfig);
       val adminConfig =
-              adminClientCreateFuncCache.computeIfAbsent(config, AdminClientCreateFunctionImpl::new);
+          adminClientCreateFuncCache.computeIfAbsent(config, AdminClientCreateFunctionImpl::new);
       val adminClient = adminClientCache.computeIfAbsent(nodeAddr, adminConfig);
 
       val consConfig = consumerConfigCache.computeIfAbsent(nodeAddr, this::createConsumerConfig);
       val consumerConfig =
-              consumerCreateFuncCache.computeIfAbsent(consConfig, ConsumerCreateFunctionImpl::new);
+          consumerCreateFuncCache.computeIfAbsent(consConfig, ConsumerCreateFunctionImpl::new);
       val kafkaConsumer = consumerCache.computeIfAbsent(nodeAddr, consumerConfig);
 
       val result = kafkaConsumer.poll(Duration.ofMillis(readTimeout));
       val record = (ConsumerRecord) result.iterator().next();
-
       val bytesDone = record.serializedValueSize();
       val recItem = recordOp.item();
 
@@ -190,11 +186,11 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     producerConfig.put(ProducerConfig.LINGER_MS_CONFIG, this.linger);
     producerConfig.put(ProducerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
     producerConfig.put(
-      ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-      "org.apache.kafka.common.serialization.StringSerializer");
+        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+        "org.apache.kafka.common.serialization.StringSerializer");
     producerConfig.put(
-      ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-      "com.emc.mongoose.storage.driver.kafka.io.DataItemSerializer");
+        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+        "com.emc.mongoose.storage.driver.kafka.io.DataItemSerializer");
     return producerConfig;
   }
 
@@ -202,47 +198,47 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     try {
       val config = configCache.computeIfAbsent(nodeAddr, this::createConfig);
       val adminConfig =
-        adminClientCreateFuncCache.computeIfAbsent(config, AdminClientCreateFunctionImpl::new);
+          adminClientCreateFuncCache.computeIfAbsent(config, AdminClientCreateFunctionImpl::new);
       val adminClient = adminClientCache.computeIfAbsent(nodeAddr, adminConfig);
       val producerConfig =
-        producerCreateFuncCache.computeIfAbsent(config, ProducerCreateFunctionImpl::new);
+          producerCreateFuncCache.computeIfAbsent(config, ProducerCreateFunctionImpl::new);
       val kafkaProducer = producerCache.computeIfAbsent(nodeAddr, producerConfig);
       val recordItem = recordOp.item();
       val topicName = recordOp.dstPath();
       val topicCreateFunc =
-        topicCreateFuncCache.computeIfAbsent(adminClient, TopicCreateFunctionImpl::new);
+          topicCreateFuncCache.computeIfAbsent(adminClient, TopicCreateFunctionImpl::new);
       val topic = topicCache.computeIfAbsent(topicName, topicCreateFunc);
       if (key) {
         val producerKey = recordItem.name();
         kafkaProducer.send(
-          new ProducerRecord<>(topicName, producerKey, recordItem),
-          (metadata, exception) -> {
-            if (exception == null) {
-              try {
-                recordOp.countBytesDone(recordItem.size());
-              } catch (IOException e) {
-                e.printStackTrace();
+            new ProducerRecord<>(topicName, producerKey, recordItem),
+            (metadata, exception) -> {
+              if (exception == null) {
+                try {
+                  recordOp.countBytesDone(recordItem.size());
+                } catch (IOException e) {
+                  e.printStackTrace();
+                }
+                completeOperation((O) recordOp, SUCC);
+              } else {
+                completeFailedOperation((O) recordOp, exception);
               }
-              completeOperation((O) recordOp, SUCC);
-            } else {
-              completeFailedOperation((O) recordOp, exception);
-            }
-          });
+            });
       } else {
         kafkaProducer.send(
-          new ProducerRecord<>(topicName, recordItem),
-          (metadata, exception) -> {
-            if (exception == null) {
-              try {
-                recordOp.countBytesDone(recordItem.size());
-              } catch (IOException e) {
-                e.printStackTrace();
+            new ProducerRecord<>(topicName, recordItem),
+            (metadata, exception) -> {
+              if (exception == null) {
+                try {
+                  recordOp.countBytesDone(recordItem.size());
+                } catch (IOException e) {
+                  e.printStackTrace();
+                }
+                completeOperation((O) recordOp, SUCC);
+              } else {
+                completeFailedOperation((O) recordOp, exception);
               }
-              completeOperation((O) recordOp, SUCC);
-            } else {
-              completeFailedOperation((O) recordOp, exception);
-            }
-          });
+            });
       }
       recordOp.startRequest();
     } catch (final NullPointerException e) {
@@ -296,14 +292,14 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
     consumerConfig.put(ConsumerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
     consumerConfig.put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
-    consumerConfig.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 1); // to read only one record at the time
+    consumerConfig.put(
+        ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 1); // to read only one record at the time
     return consumerConfig;
   }
 
-
   @Override
   protected final int submit(final List<O> ops, final int from, final int to)
-    throws IllegalStateException {
+      throws IllegalStateException {
     for (var i = from; i < to; i++) {
       if (!submit(ops.get(i))) {
         return i - from;
@@ -351,13 +347,13 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   @Override
   public List<I> list(
-    final ItemFactory<I> itemFactory,
-    final String path,
-    final String prefix,
-    final int idRadix,
-    final I lastPrevItem,
-    final int count)
-    throws IOException {
+      final ItemFactory<I> itemFactory,
+      final String path,
+      final String prefix,
+      final int idRadix,
+      final I lastPrevItem,
+      final int count)
+      throws IOException {
 
     if (listWasCalled) {
       throw new EOFException();
