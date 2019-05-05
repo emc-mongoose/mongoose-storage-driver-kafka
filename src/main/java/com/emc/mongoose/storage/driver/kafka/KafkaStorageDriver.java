@@ -137,16 +137,13 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   private void submitRecordReadOperation(final DataOperation recordOp, String nodeAddr) {
     try {
-      val config = configCache.computeIfAbsent(nodeAddr, this::createConfig);
-      val adminConfig =
-          adminClientCreateFuncCache.computeIfAbsent(config, AdminClientCreateFunctionImpl::new);
-      val adminClient = adminClientCache.computeIfAbsent(nodeAddr, adminConfig);
-
-      val consConfig = consumerConfigCache.computeIfAbsent(nodeAddr, this::createConsumerConfig);
       val consumerConfig =
-          consumerCreateFuncCache.computeIfAbsent(consConfig, ConsumerCreateFunctionImpl::new);
-      val kafkaConsumer = consumerCache.computeIfAbsent(nodeAddr, consumerConfig);
+          consumerConfigCache.computeIfAbsent(nodeAddr, this::createConsumerConfig);
+      val consumerCreateFunc =
+          consumerCreateFuncCache.computeIfAbsent(consumerConfig, ConsumerCreateFunctionImpl::new);
+      val kafkaConsumer = consumerCache.computeIfAbsent(nodeAddr, consumerCreateFunc);
 
+      recordOp.startRequest();
       val result = kafkaConsumer.poll(Duration.ofMillis(readTimeout));
       val record = (ConsumerRecord) result.iterator().next();
       val bytesDone = record.serializedValueSize();
