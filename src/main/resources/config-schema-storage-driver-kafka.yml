@@ -4,8 +4,6 @@ load:
     timeoutMillis: int
 storage:
   driver:
-    record:
-      batch: boolean
     create:
       key:
         enabled: boolean

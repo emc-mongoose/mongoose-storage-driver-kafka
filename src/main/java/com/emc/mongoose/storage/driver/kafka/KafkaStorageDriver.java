@@ -45,7 +45,6 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private final int linger;
   private final long buffer;
   private final String compression;
-  private final boolean readRecordsBatchMode;
   private final AtomicInteger rrc = new AtomicInteger(0);
   private final Map<String, Properties> configCache = new ConcurrentHashMap<>();
   private final Map<Properties, AdminClientCreateFunctionImpl> adminClientCreateFuncCache =
@@ -68,8 +67,6 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       throws IllegalConfigurationException {
     super(testStepId, dataInput, storageConfig, verifyFlag, batchSize);
     var driverConfig = storageConfig.configVal("driver");
-    var recordConfig = driverConfig.configVal("record");
-    this.readRecordsBatchMode = recordConfig.boolVal("batch");
     this.key = driverConfig.boolVal("create-key-enabled");
     this.requestSizeLimit = driverConfig.intVal("request-size");
     this.batch = driverConfig.intVal("batch-size");
@@ -146,28 +143,14 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   }
 
   void completeRecordReadOperations(
-      final List<O> ops,
-      final int from,
-      final int to,
-      final Operation.Status status,
-      final List<Integer> readSizes) {
+      final List<O> ops, final int from, final int to, final Operation.Status status) {
     concurrencyThrottle.release();
     I item;
     O op;
-    val amountOfReadSizes = (readSizes != null) ? readSizes.size() : 0;
-    try {
-      for (var i = from; i < to; i++) {
-        op = ops.get(i);
-        op.status(status);
-        item = op.item();
-        ((DataItem) item).size((i < amountOfReadSizes) ? readSizes.get(i) : 0);
-        ((DataOperation) op).countBytesDone(((DataItem) item).size());
-        op.finishRequest();
-        op.startResponse();
-        op.finishResponse();
-        handleCompleted(op);
-      }
-    } catch (final IOException ignored) {
+    for (var i = from; i < to; i++) {
+      op = ops.get(i);
+      op.status(status);
+      handleCompleted(op);
     }
   }
 
@@ -296,26 +279,31 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         consumerConfig.put(ConsumerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
         consumerConfig.put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
         consumerConfig.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, String.valueOf(amountOfRecords));
-        consumerConfig.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
         final KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerConfig);
-        consumer.subscribe(Arrays.asList(anyOp.dstPath())); // Could ops have different dstPaths?
-        List<Integer> sizesOfReadRecords = new ArrayList<>(amountOfRecords);
+        val topicNames = getTopicsFromOps(ops, from, to);
+        consumer.subscribe(topicNames);
         for (var i = from; i < to; i++) {
           O recordOp = ops.get(i);
           recordOp.startRequest();
+          recordOp.finishRequest();
         }
         val readRecords = consumer.poll(Duration.ZERO);
+        var index = 0;
         for (ConsumerRecord<String, byte[]> record : readRecords) {
           if (record != null) {
-            sizesOfReadRecords.add(record.value().length);
+            DataOperation recordOp = (DataOperation) ops.get(index);
+            DataItem recordItem = recordOp.item();
+            recordItem.size(record.value().length);
+            recordOp.countBytesDone(recordItem.size());
+            recordOp.startResponse();
+            recordOp.finishResponse();
+            index++;
           }
         }
-        if (sizesOfReadRecords.size() >= amountOfRecords) {
-          completeRecordReadOperations(ops, from, to, SUCC, sizesOfReadRecords);
-          submitCount = amountOfRecords;
-          consumer.commitSync();
-        } else {
-          completeRecordReadOperations(ops, from, to, RESP_FAIL_UNKNOWN, sizesOfReadRecords);
+        completeRecordReadOperations(ops, from, index, SUCC);
+        submitCount = index;
+        if (index < to) {
+          completeRecordReadOperations(ops, index, to, RESP_FAIL_UNKNOWN);
         }
       } catch (final Throwable e) {
         LogUtil.exception(
@@ -324,10 +312,18 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
             "{}: unexpected failure while trying to read {} records",
             stepId,
             to - from);
-        completeRecordReadOperations(ops, from, to, FAIL_UNKNOWN, null);
+        completeRecordReadOperations(ops, from, to, FAIL_UNKNOWN);
       }
     }
     return submitCount;
+  }
+
+  private Collection<String> getTopicsFromOps(List<O> ops, final int from, final int to) {
+    HashSet<String> topicNames = new HashSet<>();
+    for (var i = from; i < to; i++) {
+      topicNames.add(ops.get(i).dstPath());
+    }
+    return topicNames;
   }
 
   private void submitNoop(final O op) {
@@ -338,14 +334,10 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   @Override
   protected final int submit(final List<O> ops, final int from, final int to)
       throws IllegalStateException {
-    if (readRecordsBatchMode) {
-      val op = ops.get(from);
-      val opType = op.type();
-      if (OpType.READ.equals(opType)) {
-        return submitBatchRecordRead(ops, from, to);
-      } else {
-        return submitEach(ops, from, to);
-      }
+    val op = ops.get(from);
+    val opType = op.type();
+    if (OpType.READ.equals(opType)) {
+      return submitBatchRecordRead(ops, from, to);
     } else {
       return submitEach(ops, from, to);
     }
