@@ -182,12 +182,16 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     producerConfig.put(ProducerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
     producerConfig.put(ProducerConfig.LINGER_MS_CONFIG, this.linger);
     producerConfig.put(ProducerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
-    producerConfig.put(
-        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-        "org.apache.kafka.common.serialization.StringSerializer");
-    producerConfig.put(
-        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-        "com.emc.mongoose.storage.driver.kafka.io.DataItemSerializer");
+    try {
+      producerConfig.put(
+          ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+          Class.forName("org.apache.kafka.common.serialization.StringSerializer"));
+      producerConfig.put(
+          ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+          Class.forName("com.emc.mongoose.storage.driver.kafka.io.DataItemSerializer"));
+    } catch (ClassNotFoundException e) {
+      LogUtil.exception(Level.DEBUG, e, "{}: operation failed", stepId);
+    }
     return producerConfig;
   }
 
@@ -214,7 +218,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
                 try {
                   recordOp.countBytesDone(recordItem.size());
                 } catch (IOException e) {
-                  e.printStackTrace();
+                  LogUtil.exception(Level.DEBUG, e, "{}: operation failed: {}", stepId, recordOp);
                 }
                 completeOperation((O) recordOp, SUCC);
               } else {
@@ -229,7 +233,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
                 try {
                   recordOp.countBytesDone(recordItem.size());
                 } catch (IOException e) {
-                  e.printStackTrace();
+                  LogUtil.exception(Level.DEBUG, e, "{}: operation failed: {}", stepId, recordOp);
                 }
                 completeOperation((O) recordOp, SUCC);
               } else {
@@ -334,6 +338,20 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   @Override
   protected String requestNewPath(String path) {
     throw new AssertionError("Should not be invoked");
+  }
+
+  @Override
+  protected void doClose() throws IOException, IllegalStateException {
+    super.doClose();
+    configCache.clear();
+    adminClientCreateFuncCache.clear();
+    adminClientCache.values().forEach(AdminClient::close);
+    adminClientCache.clear();
+    producerCreateFuncCache.clear();
+    producerCache.values().forEach(KafkaProducer::close);
+    producerCache.clear();
+    topicCreateFuncCache.clear();
+    topicCache.clear();
   }
 
   @Override
