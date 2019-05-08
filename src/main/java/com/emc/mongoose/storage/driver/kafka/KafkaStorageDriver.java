@@ -15,17 +15,22 @@ import com.emc.mongoose.base.logging.LogUtil;
 import com.emc.mongoose.base.storage.Credential;
 import com.emc.mongoose.storage.driver.coop.CoopStorageDriverBase;
 import com.emc.mongoose.storage.driver.kafka.cache.AdminClientCreateFunctionImpl;
+import com.emc.mongoose.storage.driver.kafka.cache.ConsumerCreateFunctionImpl;
 import com.emc.mongoose.storage.driver.kafka.cache.ProducerCreateFunctionImpl;
 import com.emc.mongoose.storage.driver.kafka.cache.TopicCreateFunctionImpl;
 import com.github.akurilov.confuse.Config;
 import java.io.EOFException;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.val;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.*;
 import org.apache.logging.log4j.Level;
 
@@ -42,6 +47,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private final int linger;
   private final long buffer;
   private final String compression;
+  private final int readTimeout;
   private final AtomicInteger rrc = new AtomicInteger(0);
   private final Map<String, Properties> configCache = new ConcurrentHashMap<>();
   private final Map<Properties, AdminClientCreateFunctionImpl> adminClientCreateFuncCache =
@@ -54,6 +60,11 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       new ConcurrentHashMap<>();
   private final Map<String, NewTopic> topicCache = new ConcurrentHashMap<>();
   private volatile boolean listWasCalled = false;
+
+  private final Map<String, Properties> consumerConfigCache = new ConcurrentHashMap<>();
+  private final Map<Properties, ConsumerCreateFunctionImpl> consumerCreateFuncCache =
+      new ConcurrentHashMap<>();
+  private final Map<String, KafkaConsumer> consumerCache = new ConcurrentHashMap<>();
 
   public KafkaStorageDriver(
       String testStepId,
@@ -77,6 +88,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     this.sndBuf = netConfig.intVal("sndBuf");
     this.rcvBuf = netConfig.intVal("rcvBuf");
     this.linger = netConfig.intVal("linger");
+    this.readTimeout = driverConfig.intVal("read-timeoutMillis");
     this.requestAuthTokenFunc = null;
     this.requestNewPathFunc = null;
   }
@@ -107,7 +119,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         submitRecordCreateOperation(op, nodeAddr);
         break;
       case READ:
-        submitRecordReadOperation();
+        submitRecordReadOperation(op, nodeAddr);
         break;
       case UPDATE:
         throw new AssertionError("Not implemented");
@@ -123,7 +135,28 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   private void submitRecordDeleteOperation() {}
 
-  private void submitRecordReadOperation() {}
+  private void submitRecordReadOperation(final DataOperation recordOp, String nodeAddr) {
+    try {
+      val consumerConfig =
+          consumerConfigCache.computeIfAbsent(nodeAddr, this::createConsumerConfig);
+      val consumerCreateFunc =
+          consumerCreateFuncCache.computeIfAbsent(consumerConfig, ConsumerCreateFunctionImpl::new);
+      val kafkaConsumer = consumerCache.computeIfAbsent(nodeAddr, consumerCreateFunc);
+
+      recordOp.startRequest();
+      val result = kafkaConsumer.poll(Duration.ofMillis(readTimeout));
+      val record = (ConsumerRecord) result.iterator().next();
+      val bytesDone = record.serializedValueSize();
+      val recItem = recordOp.item();
+
+      recItem.size(bytesDone);
+      recordOp.countBytesDone(recItem.size());
+
+      completeOperation((O) recordOp, SUCC);
+    } catch (final NullPointerException | IOException e) {
+      completeFailedOperation((O) recordOp, e);
+    }
+  }
 
   boolean completeFailedOperation(final O op, final Throwable thrown) {
     LogUtil.exception(Level.DEBUG, thrown, "{}: operation failed: {}", stepId, op);
@@ -139,7 +172,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     return handleCompleted(op);
   }
 
-  private Properties createConfig(String nodeAddr) {
+  Properties createConfig(String nodeAddr) {
     var producerConfig = new Properties();
     producerConfig.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
     producerConfig.put(ProducerConfig.BATCH_SIZE_CONFIG, this.batch);
@@ -253,6 +286,16 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private void submitNoop(final O op) {
     op.startRequest();
     completeOperation(op, SUCC);
+  }
+
+  Properties createConsumerConfig(String nodeAddr) {
+    var consumerConfig = new Properties();
+    consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
+    consumerConfig.put(ConsumerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
+    consumerConfig.put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
+    consumerConfig.put(
+        ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 1); // to read only one record at the time
+    return consumerConfig;
   }
 
   @Override
