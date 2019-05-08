@@ -280,31 +280,28 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         consumerConfig.put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
         consumerConfig.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, String.valueOf(amountOfRecords));
         final KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerConfig);
-        val topicNames = getTopicsFromOps(ops, from, to);
-        consumer.subscribe(topicNames);
+        consumer.subscribe(Arrays.asList(anyOp.dstPath()));
         for (var i = from; i < to; i++) {
           O recordOp = ops.get(i);
           recordOp.startRequest();
           recordOp.finishRequest();
         }
         val readRecords = consumer.poll(Duration.ZERO);
-        var index = 0;
-        for (ConsumerRecord<String, byte[]> record : readRecords) {
-          if (record != null) {
-            DataOperation recordOp = (DataOperation) ops.get(index);
-            DataItem recordItem = recordOp.item();
-            recordItem.size(record.value().length);
-            recordOp.countBytesDone(recordItem.size());
-            recordOp.startResponse();
-            recordOp.finishResponse();
-            index++;
+        try {
+          for (ConsumerRecord<String, byte[]> record : readRecords) {
+            if (record != null) {
+              DataOperation recordOp = (DataOperation) ops.get(submitCount);
+              DataItem recordItem = recordOp.item();
+              recordItem.size(record.value().length);
+              recordOp.countBytesDone(recordItem.size());
+              recordOp.startResponse();
+              recordOp.finishResponse();
+              submitCount++;
+            }
           }
+        } catch (final IOException ignored) {
         }
-        completeRecordReadOperations(ops, from, index, SUCC);
-        submitCount = index;
-        if (index < to) {
-          completeRecordReadOperations(ops, index, to, RESP_FAIL_UNKNOWN);
-        }
+        completeRecordReadOperations(ops, from, submitCount, SUCC);
       } catch (final Throwable e) {
         LogUtil.exception(
             Level.DEBUG,
@@ -316,14 +313,6 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       }
     }
     return submitCount;
-  }
-
-  private Collection<String> getTopicsFromOps(List<O> ops, final int from, final int to) {
-    HashSet<String> topicNames = new HashSet<>();
-    for (var i = from; i < to; i++) {
-      topicNames.add(ops.get(i).dstPath());
-    }
-    return topicNames;
   }
 
   private void submitNoop(final O op) {
