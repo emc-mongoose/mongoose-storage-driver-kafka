@@ -35,7 +35,7 @@ ext {
 		disruptor                : "3.4.2",
 		dockerJava               : "3.0.14",
 		javaxActivation			 : "1.1",
-		kafka					 : "2.1.1",
+		kafka					 : "2.2.0",
 		log4j                    : "2.8.2",
 		mongooseBase             : "4.2.6",
 		mongooseStorageDriverCoop: "4.2.6",
