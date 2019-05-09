@@ -8,6 +8,8 @@ storage:
       key:
         enabled: boolean
       headers: map
+    read:
+      timeoutMillis: long
     request:
       size: int
     batch:
