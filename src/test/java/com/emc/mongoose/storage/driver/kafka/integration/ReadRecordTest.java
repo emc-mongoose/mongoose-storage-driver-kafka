@@ -43,6 +43,7 @@ public class ReadRecordTest {
 
     props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
     props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+    props.put("group.id", "null");
     consumer = new KafkaConsumer<>(props);
     producer = new KafkaProducer<>(props);
   }
