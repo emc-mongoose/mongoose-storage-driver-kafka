@@ -97,7 +97,7 @@ build_docker_image:
       - ${IMAGE_FILE_NAME}
 
 .test_robot:
-  stage: test_functional
+  stage: test
   variables:
     HOST_WORKING_DIR: ${CI_PROJECT_DIR}
     PYTHONPATH: ${PYTHONPATH}:/usr/lib/python2.7/site-packages:src/test/robot/lib
@@ -109,7 +109,7 @@ build_docker_image:
     - pip install -U robotframework-requests
     - pip install -U robotframework-csvlibrary
   script:
-    - wget http://mirror.linux-ia64.org/apache/kafka/${KAFKA_VERSION}/kafka_$SCALA_VERSION-$KAFKA_VERSION.tgz -O /opt/kafka.tgz
+    - wget http://apache-mirror.rbc.ru/pub/apache/kafka/${KAFKA_VERSION}/kafka_$SCALA_VERSION-$KAFKA_VERSION.tgz -O /opt/kafka.tgz
     - cd /opt
     - tar xvf kafka.tgz
     - cd kafka_$SCALA_VERSION-$KAFKA_VERSION
