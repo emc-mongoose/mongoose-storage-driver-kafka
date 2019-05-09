@@ -69,10 +69,10 @@ test_integration:
   stage: test
   script:
     # Install Kafka
-    - wget http://apache-mirror.rbc.ru/pub/apache/kafka/${KAFKA_VERSION}/kafka_$SCALA_VERSION-$KAFKA_VERSION.tgz -O /opt/kafka.tgz
+    - wget http://apache-mirror.rbc.ru/pub/apache/kafka/2.2.0/kafka_2.11-2.2.0.tgz -O /opt/kafka.tgz
     - cd /opt
     - tar xvf kafka.tgz
-    - cd kafka_$SCALA_VERSION-$KAFKA_VERSION
+    - cd kafka_2.11-2.2.0
     - bash ./bin/zookeeper-server-start.sh config/zookeeper.properties > /tmp/zookeeper_bash.out &
     - bash ./bin/kafka-server-start.sh config/server.properties > /tmp/kafka_bash.out &
     - cd ${CI_PROJECT_DIR}
