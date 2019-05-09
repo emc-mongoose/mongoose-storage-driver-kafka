@@ -8,10 +8,10 @@ variables:
   JAVA_HOME: /opt/jdk-11.0.2+9
   ROBOTEST_CONTAINER_WORKING_DIR: /root/mongoose
   SERVICE_HOST: docker # should be used instead of the "localhost"/"127.0.0.1" in GL CI
-
 services:
+  - zookeeper:latest
+  - solsson/kafka:2.1.1
   - docker:dind
-
 stages:
   - build
   - test # unit/integration tests

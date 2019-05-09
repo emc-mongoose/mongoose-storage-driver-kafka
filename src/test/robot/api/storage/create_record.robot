@@ -59,7 +59,7 @@ Validate Metrics Total Log File
     [Arguments]  ${step_id}  ${op_type}  ${count_succ}  ${count_fail}  ${transfer_size}
     @{metricsTotal} =  Read CSV File To Associative  ${LOG_DIR}/${step_id}/metrics.total.csv
     Should Be Equal As Strings  &{metricsTotal[0]}[OpType]  ${op_type}
-#    Should Be Equal As Strings  &{metricsTotal[0]}[CountSucc]  ${count_succ}
+    Should Be Equal As Strings  &{metricsTotal[0]}[CountSucc]  ${count_succ}
     Should Be Equal As Strings  &{metricsTotal[0]}[CountFail]  ${count_fail}
 Should Be Equal As Strings &{metricsTotal[0]}[Size] ${transfer_size}
 
