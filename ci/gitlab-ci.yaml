@@ -109,7 +109,7 @@ build_docker_image:
     - pip install -U robotframework-requests
     - pip install -U robotframework-csvlibrary
   script:
-    - wget http://apache-mirror.rbc.ru/pub/apache/kafka/${KAFKA_VERSION}/kafka_$SCALA_VERSION-$KAFKA_VERSION.tgz -O /opt/kafka.tgz
+    - wget http://mirror.linux-ia64.org/apache/kafka/${KAFKA_VERSION}/kafka_$SCALA_VERSION-$KAFKA_VERSION.tgz -O /opt/kafka.tgz
     - cd /opt
     - tar xvf kafka.tgz
     - cd kafka_$SCALA_VERSION-$KAFKA_VERSION
