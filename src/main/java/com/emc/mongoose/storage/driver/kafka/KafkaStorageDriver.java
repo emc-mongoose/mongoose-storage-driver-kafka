@@ -82,19 +82,21 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       throws IllegalConfigurationException {
     super(testStepId, dataInput, storageConfig, verifyFlag, batchSize);
     var driverConfig = storageConfig.configVal("driver");
-	final var headersMap = driverConfig.<String>mapVal("headers");
-    for (final var header : headersMap.entrySet()) {
-      final var headerKey = header.getKey();
-      final var headerValue = header.getValue();
-      if (headerKey.contains(ASYNC_MARKER)
-              || headerKey.contains(SYNC_MARKER)
-              || headerKey.contains(INIT_MARKER)
-              || headerValue.contains(ASYNC_MARKER)
-              || headerValue.contains(SYNC_MARKER)
-              || headerValue.contains(INIT_MARKER)) {
-        dynamicHeaders.put(headerKey, headerValue);
-      } else {
-        sharedHeaders.put(headerKey, headerValue);
+    final var headersMap = driverConfig.<String>mapVal("headers");
+    if(!headersMap.isEmpty()) {
+      for (final var header : headersMap.entrySet()) {
+        final var headerKey = header.getKey();
+        final var headerValue = header.getValue();
+        if (headerKey.contains(ASYNC_MARKER)
+                || headerKey.contains(SYNC_MARKER)
+                || headerKey.contains(INIT_MARKER)
+                || headerValue.contains(ASYNC_MARKER)
+                || headerValue.contains(SYNC_MARKER)
+                || headerValue.contains(INIT_MARKER)) {
+          dynamicHeaders.put(headerKey, headerValue);
+        } else {
+          sharedHeaders.put(headerKey, headerValue);
+        }
       }
     }
     this.key = driverConfig.boolVal("create-key-enabled");
