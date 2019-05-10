@@ -97,7 +97,7 @@ build_docker_image:
       - ${IMAGE_FILE_NAME}
 
 .test_robot:
-  stage: test
+  stage: test_functional
   variables:
     HOST_WORKING_DIR: ${CI_PROJECT_DIR}
     PYTHONPATH: ${PYTHONPATH}:/usr/lib/python2.7/site-packages:src/test/robot/lib
