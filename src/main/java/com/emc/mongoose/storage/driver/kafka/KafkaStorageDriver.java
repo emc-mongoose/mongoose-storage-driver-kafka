@@ -25,6 +25,7 @@ import com.emc.mongoose.storage.driver.kafka.cache.TopicCreateFunctionImpl;
 import com.emc.mongoose.storage.driver.preempt.PreemptStorageDriverBase;
 import com.github.akurilov.commons.concurrent.ContextAwareThreadFactory;
 import com.github.akurilov.confuse.Config;
+import java.io.EOFException;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -505,10 +506,10 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         for (String topicName : result.names().get()) {
           items.add(itemFactory.getItem(path + prefix + topicName, 0, 0));
         }
-      } catch (InterruptedException e) {
-        e.printStackTrace();
-      } catch (ExecutionException e) {
-        e.printStackTrace();
+      } catch (final InterruptedException e) {
+        throwUnchecked(e);
+      } catch (final ExecutionException e) {
+        LogUtil.exception(Level.WARN, e, "Topics listing failure");
       }
     }
     return items;
