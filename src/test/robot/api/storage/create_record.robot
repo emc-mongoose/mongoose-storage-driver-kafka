@@ -16,14 +16,15 @@ Create_Record_Test
     ${node_addr} =  Get Environment Variable  SERVICE_HOST  127.0.0.1
     ${step_id} =  Set Variable  create_record_test
     Remove Directory  ${LOG_DIR}/${step_id}  recursive=True
+    ${count_limit} =  Set Variable  10
     ${args} =  Catenate  SEPARATOR= \\\n\t
     ...  --load-step-id=${step_id}
-    ...  --load-op-limit-count=10
+    ...  --load-op-limit-count=${count_limit}
     ...  --item-data-size=1000
     ...  --storage-net-node-addrs=${node_addr}
     ${std_out} =  Execute Mongoose Scenario  ${args}
     Log  ${std_out}
-    Validate Metrics Total Log File  ${step_id}  CREATE  10  0  10000
+    Validate Metrics Total Log File  ${step_id}  CREATE  ${count_limit}  0  10000
 
 *** Keyword ***
 Execute Mongoose Scenario
