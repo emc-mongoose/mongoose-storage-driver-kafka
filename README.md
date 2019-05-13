@@ -80,6 +80,51 @@ Not supported
 | storage-net-node-addrs | list | "" | A list of host/port pairs to use for establishing the initial connection to the Kafka cluster.  This list should be in the form *host1:port1*,*host2:port2* |
 | storage-net-node-port | integer | 9092 | The common port number to access the storage nodes, may be overriden adding the port number to the storage-driver-addrs, for example: "127.0.0.1:9020,127.0.0.1:9022,..." |
 
+## Custom Kafka Headers
+
+Scenario example:
+
+```javascript
+var customKafkaHeadersConfig = {
+    "storage" : {
+        "driver" : {
+            "create" : {
+                "headers" : {
+                    "header-name-0" : "header_value_0",
+                    "header-name-1" : "header_value_1",
+                    // ...
+                    "header-name-N" : "header_value_N"
+                }
+            }
+        }
+    }
+};
+Load
+    .config(customKafkaHeadersConfig)
+    .run();
+```
+
+**Note**:
+> Don't use the command line arguments for the custom Kafka headers setting.
+### Expressions
+
+Scenario example, note both the parameterized header name and value:
+```javascript
+var varKafkaHeadersConfig = {
+    "storage" : {
+        "driver" : {
+            "create" : {
+                "headers" : {
+                    "x-amz-meta-${math:random(30) + 1}" : "${date:format("yyyy-MM-dd'T'HH:mm:ssZ").format(date:from(rnd.nextLong(time:millisSinceEpoch())))}"
+                }
+            }
+        }
+    }
+};
+Load
+    .config(varKafkaHeadersConfig)
+    .run();
+```
 **Notes:**
 > For reading: num.consumer.fetchers	- the number fetcher threads used to fetch data, default value = 1.
 

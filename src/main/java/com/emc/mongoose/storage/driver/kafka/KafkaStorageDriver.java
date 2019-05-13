@@ -33,6 +33,11 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.*;
 import org.apache.logging.log4j.Level;
+import java.util.Map;
+import java.util.HashMap;
+import static com.github.akurilov.commons.io.el.ExpressionInput.ASYNC_MARKER;
+import static com.github.akurilov.commons.io.el.ExpressionInput.INIT_MARKER;
+import static com.github.akurilov.commons.io.el.ExpressionInput.SYNC_MARKER;
 
 public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     extends CoopStorageDriverBase<I, O> {
@@ -59,6 +64,8 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private final Map<AdminClient, TopicCreateFunctionImpl> topicCreateFuncCache =
       new ConcurrentHashMap<>();
   private final Map<String, NewTopic> topicCache = new ConcurrentHashMap<>();
+  protected final Map<String, String>  sharedHeaders = new HashMap<>();
+  protected final Map<String, String> dynamicHeaders = new HashMap<>();
   private volatile boolean listWasCalled = false;
 
   private final Map<String, Properties> consumerConfigCache = new ConcurrentHashMap<>();
@@ -75,6 +82,23 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       throws IllegalConfigurationException {
     super(testStepId, dataInput, storageConfig, verifyFlag, batchSize);
     var driverConfig = storageConfig.configVal("driver");
+    final var headersMap = driverConfig.<String>mapVal("headers");
+    if(!headersMap.isEmpty()) {
+      for (final var header : headersMap.entrySet()) {
+        final var headerKey = header.getKey();
+        final var headerValue = header.getValue();
+        if (headerKey.contains(ASYNC_MARKER)
+                || headerKey.contains(SYNC_MARKER)
+                || headerKey.contains(INIT_MARKER)
+                || headerValue.contains(ASYNC_MARKER)
+                || headerValue.contains(SYNC_MARKER)
+                || headerValue.contains(INIT_MARKER)) {
+          dynamicHeaders.put(headerKey, headerValue);
+        } else {
+          sharedHeaders.put(headerKey, headerValue);
+        }
+      }
+    }
     this.key = driverConfig.boolVal("create-key-enabled");
     this.requestSizeLimit = driverConfig.intVal("request-size");
     this.batch = driverConfig.intVal("batch-size");
