@@ -1,6 +1,9 @@
 package com.emc.mongoose.storage.driver.kafka;
 
 import static com.emc.mongoose.base.item.op.Operation.Status.*;
+import static com.github.akurilov.commons.io.el.ExpressionInput.ASYNC_MARKER;
+import static com.github.akurilov.commons.io.el.ExpressionInput.INIT_MARKER;
+import static com.github.akurilov.commons.io.el.ExpressionInput.SYNC_MARKER;
 import static com.github.akurilov.commons.lang.Exceptions.throwUnchecked;
 
 import com.emc.mongoose.base.config.IllegalConfigurationException;
@@ -16,6 +19,7 @@ import com.emc.mongoose.base.logging.LogUtil;
 import com.emc.mongoose.base.storage.Credential;
 import com.emc.mongoose.storage.driver.coop.CoopStorageDriverBase;
 import com.emc.mongoose.storage.driver.kafka.cache.AdminClientCreateFunctionImpl;
+import com.emc.mongoose.storage.driver.kafka.cache.ConsumerCreateFunctionImpl;
 import com.emc.mongoose.storage.driver.kafka.cache.ProducerCreateFunctionImpl;
 import com.emc.mongoose.storage.driver.kafka.cache.TopicCreateFunctionImpl;
 import com.github.akurilov.confuse.Config;
@@ -23,12 +27,16 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.val;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.*;
 import org.apache.logging.log4j.Level;
 
@@ -45,6 +53,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private final int linger;
   private final long buffer;
   private final String compression;
+  private final int readTimeout;
   private final AtomicInteger rrc = new AtomicInteger(0);
   private final Map<String, Properties> configCache = new ConcurrentHashMap<>();
   private final Map<Properties, AdminClientCreateFunctionImpl> adminClientCreateFuncCache =
@@ -56,7 +65,14 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private final Map<AdminClient, TopicCreateFunctionImpl> topicCreateFuncCache =
       new ConcurrentHashMap<>();
   private final Map<String, NewTopic> topicCache = new ConcurrentHashMap<>();
+  protected final Map<String, String> sharedHeaders = new HashMap<>();
+  protected final Map<String, String> dynamicHeaders = new HashMap<>();
   private volatile boolean listWasCalled = false;
+
+  private final Map<String, Properties> consumerConfigCache = new ConcurrentHashMap<>();
+  private final Map<Properties, ConsumerCreateFunctionImpl> consumerCreateFuncCache =
+      new ConcurrentHashMap<>();
+  private final Map<String, KafkaConsumer> consumerCache = new ConcurrentHashMap<>();
 
   public KafkaStorageDriver(
       String testStepId,
@@ -67,6 +83,23 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       throws IllegalConfigurationException {
     super(testStepId, dataInput, storageConfig, verifyFlag, batchSize);
     var driverConfig = storageConfig.configVal("driver");
+    final var headersMap = driverConfig.<String>mapVal("headers");
+    if (!headersMap.isEmpty()) {
+      for (final var header : headersMap.entrySet()) {
+        final var headerKey = header.getKey();
+        final var headerValue = header.getValue();
+        if (headerKey.contains(ASYNC_MARKER)
+            || headerKey.contains(SYNC_MARKER)
+            || headerKey.contains(INIT_MARKER)
+            || headerValue.contains(ASYNC_MARKER)
+            || headerValue.contains(SYNC_MARKER)
+            || headerValue.contains(INIT_MARKER)) {
+          dynamicHeaders.put(headerKey, headerValue);
+        } else {
+          sharedHeaders.put(headerKey, headerValue);
+        }
+      }
+    }
     this.key = driverConfig.boolVal("create-key-enabled");
     this.requestSizeLimit = driverConfig.intVal("request-size");
     this.batch = driverConfig.intVal("batch-size");
@@ -80,6 +113,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     this.sndBuf = netConfig.intVal("sndBuf");
     this.rcvBuf = netConfig.intVal("rcvBuf");
     this.linger = netConfig.intVal("linger");
+    this.readTimeout = driverConfig.intVal("read-timeoutMillis");
     this.requestAuthTokenFunc = null;
     this.requestNewPathFunc = null;
   }
@@ -110,7 +144,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         submitRecordCreateOperation(op, nodeAddr);
         break;
       case READ:
-        submitRecordReadOperation();
+        submitRecordReadOperation(op, nodeAddr);
         break;
       case UPDATE:
         throw new AssertionError("Not implemented");
@@ -126,7 +160,28 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   private void submitRecordDeleteOperation() {}
 
-  private void submitRecordReadOperation() {}
+  private void submitRecordReadOperation(final DataOperation recordOp, String nodeAddr) {
+    try {
+      val consumerConfig =
+          consumerConfigCache.computeIfAbsent(nodeAddr, this::createConsumerConfig);
+      val consumerCreateFunc =
+          consumerCreateFuncCache.computeIfAbsent(consumerConfig, ConsumerCreateFunctionImpl::new);
+      val kafkaConsumer = consumerCache.computeIfAbsent(nodeAddr, consumerCreateFunc);
+
+      recordOp.startRequest();
+      val result = kafkaConsumer.poll(Duration.ofMillis(readTimeout));
+      val record = (ConsumerRecord) result.iterator().next();
+      val bytesDone = record.serializedValueSize();
+      val recItem = recordOp.item();
+
+      recItem.size(bytesDone);
+      recordOp.countBytesDone(recItem.size());
+
+      completeOperation((O) recordOp, SUCC);
+    } catch (final NullPointerException | IOException e) {
+      completeFailedOperation((O) recordOp, e);
+    }
+  }
 
   boolean completeFailedOperation(final O op, final Throwable thrown) {
     LogUtil.exception(Level.DEBUG, thrown, "{}: operation failed: {}", stepId, op);
@@ -164,12 +219,16 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     producerConfig.put(ProducerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
     producerConfig.put(ProducerConfig.LINGER_MS_CONFIG, this.linger);
     producerConfig.put(ProducerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
-    producerConfig.put(
-        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-        "org.apache.kafka.common.serialization.StringSerializer");
-    producerConfig.put(
-        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-        "com.emc.mongoose.storage.driver.kafka.io.DataItemSerializer");
+    try {
+      producerConfig.put(
+          ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+          Class.forName("org.apache.kafka.common.serialization.StringSerializer"));
+      producerConfig.put(
+          ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+          Class.forName("com.emc.mongoose.storage.driver.kafka.io.DataItemSerializer"));
+    } catch (ClassNotFoundException e) {
+      LogUtil.exception(Level.DEBUG, e, "{}: operation failed", stepId);
+    }
     return producerConfig;
   }
 
@@ -196,7 +255,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
                 try {
                   recordOp.countBytesDone(recordItem.size());
                 } catch (IOException e) {
-                  e.printStackTrace();
+                  LogUtil.exception(Level.DEBUG, e, "{}: operation failed: {}", stepId, recordOp);
                 }
                 completeOperation((O) recordOp, SUCC);
               } else {
@@ -211,7 +270,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
                 try {
                   recordOp.countBytesDone(recordItem.size());
                 } catch (IOException e) {
-                  e.printStackTrace();
+                  LogUtil.exception(Level.DEBUG, e, "{}: operation failed: {}", stepId, recordOp);
                 }
                 completeOperation((O) recordOp, SUCC);
               } else {
@@ -320,6 +379,16 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     completeOperation(op, SUCC);
   }
 
+  Properties createConsumerConfig(String nodeAddr) {
+    var consumerConfig = new Properties();
+    consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
+    consumerConfig.put(ConsumerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
+    consumerConfig.put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
+    consumerConfig.put(
+        ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 1); // to read only one record at the time
+    return consumerConfig;
+  }
+
   @Override
   protected final int submit(final List<O> ops, final int from, final int to)
       throws IllegalStateException {
@@ -364,6 +433,20 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   @Override
   protected String requestNewPath(String path) {
     throw new AssertionError("Should not be invoked");
+  }
+
+  @Override
+  protected void doClose() throws IOException, IllegalStateException {
+    super.doClose();
+    configCache.clear();
+    adminClientCreateFuncCache.clear();
+    adminClientCache.values().forEach(AdminClient::close);
+    adminClientCache.clear();
+    producerCreateFuncCache.clear();
+    producerCache.values().forEach(KafkaProducer::close);
+    producerCache.clear();
+    topicCreateFuncCache.clear();
+    topicCache.clear();
   }
 
   @Override

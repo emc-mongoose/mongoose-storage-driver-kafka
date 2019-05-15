@@ -7,6 +7,9 @@ storage:
     create:
       key:
         enabled: false
+      headers: {}
+    read:
+      timeoutMillis: 10000
     request:
       size: 1048576
     batch:
