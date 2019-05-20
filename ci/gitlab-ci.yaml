@@ -51,50 +51,50 @@ before_script:
 build:
   stage: build
   script:
-    - ./gradlew clean jar
+  - ./gradlew clean jar
   artifacts:
     paths:
-      - build/libs/mongoose-*.jar
+    - build/libs/mongoose-*.jar
 
 test_unit:
   stage: test
   script:
-    - ./gradlew test
+  - ./gradlew test
   artifacts:
     paths:
-      - build/reports/tests/test/*
+    - build/reports/tests/test/*
     when: on_failure
 
 test_integration:
   stage: test
   script:
-    # Install Kafka
-    - wget http://apache-mirror.rbc.ru/pub/apache/kafka/${KAFKA_VERSION}/kafka_$SCALA_VERSION-$KAFKA_VERSION.tgz -O /opt/kafka.tgz
-    - cd /opt
-    - tar xvf kafka.tgz
-    - cd kafka_$SCALA_VERSION-$KAFKA_VERSION
-    - bash ./bin/zookeeper-server-start.sh config/zookeeper.properties > /tmp/zookeeper_bash.out &
-    - bash ./bin/kafka-server-start.sh config/server.properties > /tmp/kafka_bash.out &
-    - cd ${CI_PROJECT_DIR}
-    - ./gradlew integrationTest
+  # Install Kafka
+  - wget http://apache-mirror.rbc.ru/pub/apache/kafka/${KAFKA_VERSION}/kafka_$SCALA_VERSION-$KAFKA_VERSION.tgz -O /opt/kafka.tgz
+  - cd /opt
+  - tar xvf kafka.tgz
+  - cd kafka_$SCALA_VERSION-$KAFKA_VERSION
+  - bash ./bin/zookeeper-server-start.sh config/zookeeper.properties > /tmp/zookeeper_bash.out &
+  - bash ./bin/kafka-server-start.sh config/server.properties > /tmp/kafka_bash.out &
+  - cd ${CI_PROJECT_DIR}
+  - ./gradlew integrationTest
   after_script:
-    - killall java
+  - killall java
   artifacts:
     paths:
-      - /tmp/zookeeper_bash.out
-      - /tmp/kafka_bash.out
-      - build/reports/tests/integrationTest/*
+    - /tmp/zookeeper_bash.out
+    - /tmp/kafka_bash.out
+    - build/reports/tests/integrationTest/*
     when: on_failure
 
 build_docker_image:
   stage: build_docker_image
   script:
-    - ./gradlew dockerBuildImage
-    - export VERSION=$(cat build.gradle | grep version\ = | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
-    - docker save ${IMAGE_NAME}:${VERSION} > ${IMAGE_FILE_NAME}
+  - ./gradlew dockerBuildImage
+  - export VERSION=$(cat build.gradle | grep version\ = | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
+  - docker save ${IMAGE_NAME}:${VERSION} > ${IMAGE_FILE_NAME}
   artifacts:
     paths:
-      - ${IMAGE_FILE_NAME}
+    - ${IMAGE_FILE_NAME}
 
 .test_robot:
   stage: test_functional
@@ -102,27 +102,27 @@ build_docker_image:
     HOST_WORKING_DIR: ${CI_PROJECT_DIR}
     PYTHONPATH: ${PYTHONPATH}:/usr/lib/python2.7/site-packages:src/test/robot/lib
   before_script:
-    - apk add --no-cache --update python py-pip
-    - pip install -U virtualenv
-    - pip install -U requests
-    - pip install -U robotframework
-    - pip install -U robotframework-requests
-    - pip install -U robotframework-csvlibrary
-    - docker pull zookeeper
-    - docker pull solsson/kafka
-    script:
-    - docker run --network host zookeeper
-    - docker run --network host --entrypoint ./bin/kafka-server-start.sh solsson/kafka ./config/server.properties --override zookeeper.connect=localhost:2181 --override advertised.listener=PLAINTEXT://kafka-0:9092
-    - export BASE_VERSION=$(cat build.gradle | grep mongooseBase  | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
-    - export VERSION=$(cat build.gradle | grep version\ = | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
-    - docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
-    - docker load < ${IMAGE_FILE_NAME}
-    - robot --outputdir build/robotest --suite ${SUITE} --include ${TEST} src/test/robot
+  - apk add --no-cache --update python py-pip
+  - pip install -U virtualenv
+  - pip install -U requests
+  - pip install -U robotframework
+  - pip install -U robotframework-requests
+  - pip install -U robotframework-csvlibrary
+  - docker pull zookeeper
+  - docker pull solsson/kafka
+  script:
+  - docker run --network host zookeeper
+  - docker run --network host --entrypoint ./bin/kafka-server-start.sh solsson/kafka ./config/server.properties --override zookeeper.connect=localhost:2181 --override advertised.listener=PLAINTEXT://kafka-0:9092
+  - export BASE_VERSION=$(cat build.gradle | grep mongooseBase  | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
+  - export VERSION=$(cat build.gradle | grep version\ = | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
+  - docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
+  - docker load < ${IMAGE_FILE_NAME}
+  - robot --outputdir build/robotest --suite ${SUITE} --include ${TEST} src/test/robot
   after_script:
-    - rebot build/robotest/output.xml
+  - rebot build/robotest/output.xml
   artifacts:
     paths:
-      - build/robotest/*.html
+    - build/robotest/*.html
     when: on_failure
 
 test_create_record:
@@ -134,26 +134,27 @@ test_create_record:
 release_to_maven_repo:
   stage: deploy
   script:
-    - if [ ! -z "$GPG_SECRET_KEYS" ]; then echo $GPG_SECRET_KEYS | base64 -d | gpg --import --batch; fi
-    - if [ ! -z "$GPG_OWNERTRUST" ]; then echo $GPG_OWNERTRUST | base64 -d | gpg --import-ownertrust --batch; fi
-    - mkdir /tmp/.gnupg
-    - if [ ! -z "$GPG_SECRING" ]; then echo $GPG_SECRING | base64 -d > /tmp/.gnupg/secring.gpg; fi
-    - ./gradlew -Psigning.keyId=${SIGNING_KEY_ID} -Psigning.password=${SIGNING_PASSWORD} -Psigning.secretKeyRingFile=/tmp/.gnupg/secring.gpg -PossrhUsername=${OSSRH_USERNAME} -PossrhPassword=${OSSRH_PASSWORD} publishToNexus closeAndReleaseRepository
+  - if [ ! -z "$GPG_SECRET_KEYS" ]; then echo $GPG_SECRET_KEYS | base64 -d | gpg --import --batch; fi
+  - if [ ! -z "$GPG_OWNERTRUST" ]; then echo $GPG_OWNERTRUST | base64 -d | gpg --import-ownertrust --batch; fi
+  - mkdir /tmp/.gnupg
+  - if [ ! -z "$GPG_SECRING" ]; then echo $GPG_SECRING | base64 -d > /tmp/.gnupg/secring.gpg; fi
+  - ./gradlew -Psigning.keyId=${SIGNING_KEY_ID} -Psigning.password=${SIGNING_PASSWORD} -Psigning.secretKeyRingFile=/tmp/.gnupg/secring.gpg -PossrhUsername=${OSSRH_USERNAME} -PossrhPassword=${OSSRH_PASSWORD} publishToNexus closeAndReleaseRepository
   only:
-    - latest
+  - latest
   except:
-    - branches
+  - branches
 
 release_to_docker_hub:
   stage: deploy
   script:
-    - docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
-    - docker load < ${IMAGE_FILE_NAME}
-    - export VERSION=$(cat build.gradle | grep version\ = | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
-    - docker push ${IMAGE_NAME}:${VERSION}
-    - docker tag ${IMAGE_NAME}:${VERSION} ${IMAGE_NAME}:latest
-    - docker push ${IMAGE_NAME}:latest
+  - docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
+  - docker load < ${IMAGE_FILE_NAME}
+  - export VERSION=$(cat build.gradle | grep version\ = | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
+  - docker push ${IMAGE_NAME}:${VERSION}
+  - docker tag ${IMAGE_NAME}:${VERSION} ${IMAGE_NAME}:latest
+  - docker push ${IMAGE_NAME}:latest
   only:
-    - latest
+  - latest
   except:
-    - branches
+  - branches
+
