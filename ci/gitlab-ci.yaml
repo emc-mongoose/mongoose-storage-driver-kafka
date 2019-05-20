@@ -111,8 +111,8 @@ build_docker_image:
   - docker pull zookeeper
   - docker pull solsson/kafka
   script:
-  - docker run --network host zookeeper
-  - docker run --network host --entrypoint ./bin/kafka-server-start.sh solsson/kafka ./config/server.properties --override zookeeper.connect=localhost:2181 --override advertised.listener=PLAINTEXT://kafka-0:9092
+  - docker run --network host zookeeper > /tmp/zookeeper_bash.out
+  - docker run --network host --entrypoint ./bin/kafka-server-start.sh solsson/kafka ./config/server.properties --override zookeeper.connect=localhost:2181 --override advertised.listener=PLAINTEXT://kafka-0:9092  solsson/kafka > /tmp/kafka_bash.out
   - export BASE_VERSION=$(cat build.gradle | grep mongooseBase  | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
   - export VERSION=$(cat build.gradle | grep version\ = | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
   - docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
