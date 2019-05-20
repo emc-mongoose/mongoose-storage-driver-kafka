@@ -130,7 +130,8 @@ Load
 
 > For recording: KafkaProducer contains thread, the number of threads is equal to the number of producers.
 
-**Note about KAFKA benchmark**
+**Note about KAFKA benchmark:**
+
 Command line example:
 ```
 ./bin/kafka-run-class.sh \
@@ -144,7 +145,14 @@ batch.size=8196
 ```
 Result:
 ```
-50000000 records sent, 68460.889663 records/sec (6.53 MB/sec), 8772.19 ms avg latency, 29552.00 ms max latency, 8072 ms 50th, 16228 ms 95th, 26685 ms 99th, 28510 ms 99.9th.
+50000000 records sent, 
+68460.889663 records/sec (6.53 MB/sec), 
+8772.19 ms avg latency, 
+29552.00 ms max latency, 
+8072 ms 50th, 
+16228 ms 95th, 
+26685 ms 99th, 
+28510 ms 99.9th.
 ```
 Computer configuration:
 + OS - Ubuntu 18.04.2 LTS
