@@ -129,3 +129,27 @@ Load
 > For reading: num.consumer.fetchers	- the number fetcher threads used to fetch data, default value = 1.
 
 > For recording: KafkaProducer contains thread, the number of threads is equal to the number of producers.
+
+**Note about KAFKA benchmark**
+Command line example:
+```
+./bin/kafka-run-class.sh \
+org.apache.kafka.tools.ProducerPerformance --throughput=-1 \
+--topic=test-one \
+--num-records=50000000 \
+--record-size=100 \
+--producer-props bootstrap.servers=localhost:9092 \
+buffer.memory=67108864 \
+batch.size=8196
+```
+Result:
+```
+50000000 records sent, 68460.889663 records/sec (6.53 MB/sec), 8772.19 ms avg latency, 29552.00 ms max latency, 8072 ms 50th, 16228 ms 95th, 26685 ms 99th, 28510 ms 99.9th.
+```
+Computer configuration:
++ OS - Ubuntu 18.04.2 LTS
++ Memory - 3.8 GiB
++ Processor - Intel® Core™ i5-6200U CPU @ 2.30GHz × 4 
++ OS type - 64-bit
+
+
