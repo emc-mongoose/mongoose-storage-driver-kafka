@@ -108,16 +108,11 @@ build_docker_image:
     - pip install -U robotframework
     - pip install -U robotframework-requests
     - pip install -U robotframework-csvlibrary
-    - export KAFKA_VERSION=$(cat build.gradle | grep kafka | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
-    - export SCALA_VERSION=$(cat build.gradle | grep scala | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p' | sed 's/\([^\.]*\.[^\.]*\)\..*/\1/')
-  script:
-    - wget http://apache-mirror.rbc.ru/pub/apache/kafka/$KAFKA_VERSION/kafka_$SCALA_VERSION-$KAFKA_VERSION.tgz -O /opt/kafka.tgz
-    - cd /opt
-    - tar xvf kafka.tgz
-    - cd kafka_$SCALA_VERSION-$KAFKA_VERSION
-    - bash ./bin/zookeeper-server-start.sh config/zookeeper.properties > /tmp/zookeeper_bash.out &
-    - bash ./bin/kafka-server-start.sh config/server.properties > /tmp/kafka_bash.out &
-    - cd $HOST_WORKING_DIR
+    - docker pull zookeeper
+    - docker pull solsson/kafka
+    script:
+    - docker run --network host zookeeper
+    - docker run --network host --entrypoint ./bin/kafka-server-start.sh solsson/kafka ./config/server.properties --override zookeeper.connect=localhost:2181 --override advertised.listener=PLAINTEXT://kafka-0:9092
     - export BASE_VERSION=$(cat build.gradle | grep mongooseBase  | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
     - export VERSION=$(cat build.gradle | grep version\ = | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
     - docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
