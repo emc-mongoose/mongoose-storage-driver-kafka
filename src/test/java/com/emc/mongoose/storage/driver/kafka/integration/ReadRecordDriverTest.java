@@ -126,13 +126,12 @@ public class ReadRecordDriverTest {
       config.val("storage-net-rcvBuf", 0);
       config.val("storage-net-sndBuf", 0);
       config.val("storage-net-linger", 0);
-      config.val("storage-net-node-addrs", "localhost");
+      config.val("storage-net-node-addrs", "127.0.0.1");
       config.val("storage-net-node-port", 9092);
 
       config.val("storage-driver-create-key-enabled", false);
       config.val("storage-driver-read-timeoutMillis", 10000);
       config.val("storage-driver-request-size", 1048576);
-      config.val("storage-driver-batch-size", 16384);
       config.val("storage-driver-buffer-memory", 33554432);
       config.val("storage-driver-compression-type", "none");
 
