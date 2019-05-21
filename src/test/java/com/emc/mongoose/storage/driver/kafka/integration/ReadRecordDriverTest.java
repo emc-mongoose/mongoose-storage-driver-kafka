@@ -76,7 +76,7 @@ public class ReadRecordDriverTest {
   }
 
   @Test
-  public void createSingleTopicTest() throws Exception {
+  public void readRecordsTest() throws Exception {
     final CreateTopicsResult result =
         adminClient.createTopics(Collections.singleton(new NewTopic(TOPIC_NAME, 2, (short) 1)));
     Assert.assertTrue(
