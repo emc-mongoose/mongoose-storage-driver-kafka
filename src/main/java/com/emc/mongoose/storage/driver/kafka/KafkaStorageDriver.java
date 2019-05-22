@@ -1,6 +1,9 @@
 package com.emc.mongoose.storage.driver.kafka;
 
 import static com.emc.mongoose.base.item.op.Operation.Status.*;
+import static com.github.akurilov.commons.io.el.ExpressionInput.ASYNC_MARKER;
+import static com.github.akurilov.commons.io.el.ExpressionInput.INIT_MARKER;
+import static com.github.akurilov.commons.io.el.ExpressionInput.SYNC_MARKER;
 import static com.github.akurilov.commons.lang.Exceptions.throwUnchecked;
 
 import com.emc.mongoose.base.config.IllegalConfigurationException;
@@ -23,21 +26,20 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.val;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.*;
+import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.logging.log4j.Level;
-import java.util.Map;
-import java.util.HashMap;
-import static com.github.akurilov.commons.io.el.ExpressionInput.ASYNC_MARKER;
-import static com.github.akurilov.commons.io.el.ExpressionInput.INIT_MARKER;
-import static com.github.akurilov.commons.io.el.ExpressionInput.SYNC_MARKER;
 
 public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     extends CoopStorageDriverBase<I, O> {
@@ -64,7 +66,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private final Map<AdminClient, TopicCreateFunctionImpl> topicCreateFuncCache =
       new ConcurrentHashMap<>();
   private final Map<String, NewTopic> topicCache = new ConcurrentHashMap<>();
-  protected final Map<String, String>  sharedHeaders = new HashMap<>();
+  protected final Map<String, String> sharedHeaders = new HashMap<>();
   protected final Map<String, String> dynamicHeaders = new HashMap<>();
   private volatile boolean listWasCalled = false;
 
@@ -83,16 +85,16 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     super(testStepId, dataInput, storageConfig, verifyFlag, batchSize);
     var driverConfig = storageConfig.configVal("driver");
     final var headersMap = driverConfig.<String>mapVal("headers");
-    if(!headersMap.isEmpty()) {
+    if (!headersMap.isEmpty()) {
       for (final var header : headersMap.entrySet()) {
         final var headerKey = header.getKey();
         final var headerValue = header.getValue();
         if (headerKey.contains(ASYNC_MARKER)
-                || headerKey.contains(SYNC_MARKER)
-                || headerKey.contains(INIT_MARKER)
-                || headerValue.contains(ASYNC_MARKER)
-                || headerValue.contains(SYNC_MARKER)
-                || headerValue.contains(INIT_MARKER)) {
+            || headerKey.contains(SYNC_MARKER)
+            || headerKey.contains(INIT_MARKER)
+            || headerValue.contains(ASYNC_MARKER)
+            || headerValue.contains(SYNC_MARKER)
+            || headerValue.contains(INIT_MARKER)) {
           dynamicHeaders.put(headerKey, headerValue);
         } else {
           sharedHeaders.put(headerKey, headerValue);
@@ -129,7 +131,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       if (op instanceof DataOperation) {
         submitRecordOperation((DataOperation) op, opType, nodeAddr);
       } else if (op instanceof PathOperation) {
-        submitTopicOperation((PathOperation) op, opType);
+        submitTopicOperation((PathOperation) op, opType, nodeAddr);
       } else {
         throw new AssertionError("storage driver doesn't support the token operations");
       }
@@ -219,6 +221,12 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     return producerConfig;
   }
 
+  Properties createAdminClientConfig(final String nodeAddr) {
+    val adminClientConfig = new Properties();
+    adminClientConfig.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
+    return adminClientConfig;
+  }
+
   private void submitRecordCreateOperation(final DataOperation recordOp, String nodeAddr) {
     try {
       val config = configCache.computeIfAbsent(nodeAddr, this::createConfig);
@@ -281,10 +289,11 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     }
   }
 
-  private void submitTopicOperation(PathOperation op, OpType opType) {
+  private void submitTopicOperation(
+      final PathOperation op, final OpType opType, final String nodeAddr) {
     switch (opType) {
       case CREATE:
-        submitTopicCreateOperation();
+        submitTopicCreateOperation(op, nodeAddr);
         break;
       case READ:
         submitTopicReadOperation();
@@ -301,7 +310,48 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     }
   }
 
-  private void submitTopicCreateOperation() {}
+  private void submitTopicCreateOperation(final PathOperation topicOp, final String nodeAddr) {
+    val topicName = topicOp.item().name();
+    try {
+      val config = configCache.computeIfAbsent(nodeAddr, this::createAdminClientConfig);
+      val adminClientCreateFunc =
+          adminClientCreateFuncCache.computeIfAbsent(config, AdminClientCreateFunctionImpl::new);
+      val adminClient = adminClientCache.computeIfAbsent(nodeAddr, adminClientCreateFunc);
+      final NewTopic newTopic = new NewTopic(topicName, 1, (short) 1);
+      topicOp.startRequest();
+      val createTopicResult = adminClient.createTopics(Collections.singleton(newTopic));
+      createTopicResult
+          .all()
+          .whenComplete(
+              ((aVoid, throwable) -> {
+                if (throwable == null) {
+                  completeOperation((O) topicOp, SUCC);
+                } else {
+                  LogUtil.exception(
+                      Level.DEBUG,
+                      throwable,
+                      "{}: Failed to create topic \"{}\"",
+                      stepId,
+                      topicName);
+                }
+              }));
+    } catch (final TopicExistsException e) {
+      LogUtil.exception(Level.DEBUG, e, "{}: Topic \"{}\" already exists", stepId, topicName);
+      completeOperation((O) topicOp, RESP_FAIL_UNKNOWN);
+    } catch (final NullPointerException e) {
+      if (!isStarted()) {
+        completeOperation((O) topicOp, INTERRUPTED);
+      } else {
+        completeFailedOperation((O) topicOp, e);
+      }
+      completeFailedOperation((O) topicOp, e);
+    } catch (final Throwable thrown) {
+      if (thrown instanceof InterruptedException) {
+        throwUnchecked(thrown);
+      }
+      completeFailedOperation((O) topicOp, thrown);
+    }
+  }
 
   private void submitTopicReadOperation() {}
 
