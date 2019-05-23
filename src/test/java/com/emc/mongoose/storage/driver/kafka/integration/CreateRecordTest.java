@@ -41,22 +41,21 @@ public class CreateRecordTest {
   @Test
   public void testCreateRecord() throws Exception {
     adminClient.createTopics(Collections.singletonList(new NewTopic(TOPIC_NAME, 1, (short) 1)));
-    final byte[] one_mb_of_data = new byte[999970];
+    final byte[] one_mb_of_data = new byte[900000];
     final ProducerRecord<String, byte[]> producerRecord =
       new ProducerRecord<>(TOPIC_NAME, KEY_NAME, one_mb_of_data);
-    kafkaProducer.send(
-      producerRecord,
-      (metaData, exception) -> {
-        if (exception != null){
-          exception.printStackTrace();
-        }else {
-          System.out.println("Record was sent");
-          Assert.assertEquals("Offset must be 0", 0, metaData.offset());
-          Assert.assertEquals(
-            "Name of the topic must be " + TOPIC_NAME, TOPIC_NAME, metaData.topic());
-          Assert.assertEquals("Value size must be 1 mb", metaData.serializedValueSize(), 1048576);
-        }
-      });
+    Future<RecordMetadata> future = kafkaProducer.send(
+      producerRecord, ((metadata, exception) -> {
+        Assert.assertNull(exception);
+        Assert.assertNotNull(metadata);
+      })
+    );
+    RecordMetadata recordMetadata = future.get(1000, TimeUnit.MILLISECONDS);
+    System.out.println("Record was sent");
+    Assert.assertEquals("Offset must be 0", 0, recordMetadata.offset());
+    Assert.assertEquals(
+      "Name of the topic must be " + TOPIC_NAME, TOPIC_NAME,recordMetadata.topic());
+    Assert.assertEquals("Value size must be 1 mb", recordMetadata.serializedValueSize(), 900000);
   }
 
   @After
