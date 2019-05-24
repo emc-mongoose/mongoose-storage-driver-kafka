@@ -22,6 +22,8 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.val;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -176,39 +178,45 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       val topicCreateFunc =
           topicCreateFuncCache.computeIfAbsent(adminClient, TopicCreateFunctionImpl::new);
       val topic = topicCache.computeIfAbsent(topicName, topicCreateFunc);
+      recordOp.startRequest();
+      Future<RecordMetadata> future = null;
       if (key) {
         val producerKey = recordItem.name();
-        kafkaProducer.send(
-            new ProducerRecord<>(topicName, producerKey, recordItem),
-            (metadata, exception) -> {
-              if (exception == null) {
-                try {
-                  recordOp.countBytesDone(recordItem.size());
-                } catch (IOException e) {
-                  LogUtil.exception(Level.DEBUG, e, "{}: operation failed: {}", stepId, recordOp);
-                }
-                completeOperation((O) recordOp, SUCC);
-              } else {
-                completeFailedOperation((O) recordOp, exception);
+        future = kafkaProducer.send(new ProducerRecord<>(topicName, producerKey, recordItem)); /*,
+          (metadata, exception) -> {
+            if (exception == null) {
+              try {
+                recordOp.countBytesDone(recordItem.size());
+              } catch (IOException e) {
+                LogUtil.exception(Level.DEBUG, e, "{}: operation failed: {}", stepId, recordOp);
               }
-            });
+              completeOperation((O) recordOp, SUCC);
+            } else {
+              completeFailedOperation((O) recordOp, exception);
+            }
+          });*/
       } else {
-        kafkaProducer.send(
-            new ProducerRecord<>(topicName, recordItem),
-            (metadata, exception) -> {
-              if (exception == null) {
-                try {
-                  recordOp.countBytesDone(recordItem.size());
-                } catch (IOException e) {
-                  LogUtil.exception(Level.DEBUG, e, "{}: operation failed: {}", stepId, recordOp);
-                }
-                completeOperation((O) recordOp, SUCC);
-              } else {
-                completeFailedOperation((O) recordOp, exception);
+        future = kafkaProducer.send(new ProducerRecord<>(topicName, recordItem)); /*,
+          (metadata, exception) -> {
+            if (exception == null) {
+              try {
+                recordOp.countBytesDone(recordItem.size());
+              } catch (IOException e) {
+                LogUtil.exception(Level.DEBUG, e, "{}: operation failed: {}", stepId, recordOp);
               }
-            });
+              completeOperation((O) recordOp, SUCC);
+            } else {
+              completeFailedOperation((O) recordOp, exception);
+            }
+          });*/
       }
-      recordOp.startRequest();
+      RecordMetadata recordMetadata = future.get(1000, TimeUnit.MILLISECONDS);
+      try {
+        recordOp.countBytesDone(recordItem.size());
+      } catch (IOException e) {
+        LogUtil.exception(Level.DEBUG, e, "{}: operation failed: {}", stepId, recordOp);
+      }
+      completeOperation((O) recordOp, SUCC);
     } catch (final NullPointerException e) {
       if (!isStarted()) {
         completeOperation((O) recordOp, INTERRUPTED);
