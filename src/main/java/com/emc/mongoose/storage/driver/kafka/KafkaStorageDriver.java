@@ -25,6 +25,7 @@ import com.emc.mongoose.storage.driver.kafka.cache.ProducerCreateFunctionImpl;
 import com.emc.mongoose.storage.driver.kafka.cache.TopicCreateFunction;
 import com.emc.mongoose.storage.driver.kafka.cache.TopicCreateFunctionImpl;
 import com.emc.mongoose.storage.driver.preempt.PreemptStorageDriverBase;
+import com.github.akurilov.commons.concurrent.ContextAwareThreadFactory;
 import com.github.akurilov.confuse.Config;
 import java.io.EOFException;
 import java.io.IOException;
@@ -48,6 +49,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.ThreadContext;
 
 public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     extends PreemptStorageDriverBase<I, O> {
@@ -70,7 +72,8 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private final Map<String, AdminClient> adminClientCache = new ConcurrentHashMap<>();
   private final Map<Properties, ProducerCreateFunctionImpl> producerCreateFuncCache =
       new ConcurrentHashMap<>();
-  private final Map<String, KafkaProducer> producerCache = new ConcurrentHashMap<>();
+  private final ThreadLocal<Map<String, KafkaProducer>> threadLocalProducerCache =
+      ThreadLocal.withInitial(ConcurrentHashMap::new);
   private final Map<AdminClient, TopicCreateFunctionImpl> topicCreateFuncCache =
       new ConcurrentHashMap<>();
   private final Map<String, NewTopic> topicCache = new ConcurrentHashMap<>();
@@ -134,9 +137,49 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     this.requestNewPathFunc = null;
   }
 
+  final class IoWorkerThreadFactory extends ContextAwareThreadFactory {
+
+    public IoWorkerThreadFactory() {
+      super("io_worker_" + stepId, true, ThreadContext.getContext());
+    }
+
+    @Override
+    public final Thread newThread(final Runnable task) {
+      return new IoWorkerThread(
+          task,
+          threadNamePrefix + "#" + threadNumber.incrementAndGet(),
+          daemonFlag,
+          exceptionHandler,
+          threadContext);
+    }
+
+    final class IoWorkerThread extends LogContextThreadFactory.ContextAwareThread {
+
+      public IoWorkerThread(
+          final Runnable task,
+          final String name,
+          final boolean daemonFlag,
+          final UncaughtExceptionHandler exceptionHandler,
+          final Map<String, String> threadContext) {
+        super(task, name, daemonFlag, exceptionHandler, threadContext);
+      }
+
+      @Override
+      public final void interrupt() {
+        val producerCache = threadLocalProducerCache.get();
+        producerCache
+            .values()
+            .parallelStream()
+            .forEach(producer -> producer.close(Duration.ofSeconds(10)));
+        producerCache.clear();
+        super.interrupt();
+      }
+    }
+  }
+
   @Override
   protected ThreadFactory ioWorkerThreadFactory() {
-    return new LogContextThreadFactory("io_worker_" + stepId, true);
+    return new IoWorkerThreadFactory();
   }
 
   /** @return true if the load operations are about the Kafka records, false otherwise */
@@ -267,6 +310,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       val config = configCache.computeIfAbsent(nodeAddr, this::createConfig);
       val producerConfig =
           producerCreateFuncCache.computeIfAbsent(config, ProducerCreateFunctionImpl::new);
+      val producerCache = threadLocalProducerCache.get();
       val producer = producerCache.computeIfAbsent(nodeAddr, producerConfig);
       val adminConfig =
           adminClientCreateFuncCache.computeIfAbsent(config, AdminClientCreateFunctionImpl::new);
@@ -288,7 +332,10 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         concurrencyThrottle.acquire();
         recOp.startRequest();
         producer.send(producerRecord, (md, e) -> handleRecordProduce(recOp, recSize, e));
-        recOp.finishRequest();
+        try {
+          recOp.finishRequest();
+        } catch (final IllegalStateException ignored) {
+        }
       }
       producer.flush();
     } catch (final Throwable e) {
@@ -429,11 +476,6 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         .forEach(adminClient -> adminClient.close(Duration.ofSeconds(10)));
     adminClientCache.clear();
     producerCreateFuncCache.clear();
-    producerCache
-        .values()
-        .parallelStream()
-        .forEach(producer -> producer.close(Duration.ofSeconds(10)));
-    producerCache.clear();
     topicCreateFuncCache.clear();
     topicCache.clear();
   }
