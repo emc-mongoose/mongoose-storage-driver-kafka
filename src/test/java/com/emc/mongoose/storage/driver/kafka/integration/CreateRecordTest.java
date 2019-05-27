@@ -1,6 +1,6 @@
 package com.emc.mongoose.storage.driver.kafka.integration;
 
-import com.emc.mongoose.storage.driver.kafka.util.docker.KafkaNodeContainer;
+import java.sql.Timestamp;
 import java.util.Collections;
 import java.util.Properties;
 import java.util.concurrent.*;
@@ -12,24 +12,16 @@ import org.junit.*;
 
 public class CreateRecordTest {
 
-  private static KafkaNodeContainer KAFKA_NODE_CONTAINER;
   private KafkaProducer<String, byte[]> kafkaProducer;
   private static final String TOPIC_NAME = "topic";
   private static final String KEY_NAME = "key";
   private static AdminClient adminClient;
-
-  @BeforeClass
-  public static void createContainers() {
-    try {
-      KAFKA_NODE_CONTAINER = new KafkaNodeContainer();
-    } catch (final Exception e) {
-      throw new AssertionError(e);
-    }
-  }
+  private static Timestamp timestamp;
 
   @Before
   public void setup() {
-    String host_port = KAFKA_NODE_CONTAINER.getKafkaIp();
+    timestamp = new Timestamp(System.currentTimeMillis());
+    String host_port = "127.0.0.1:9092";
     Properties properties = new Properties();
     properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, host_port);
     Properties producer_properties = new Properties();
@@ -41,10 +33,11 @@ public class CreateRecordTest {
 
   @Test
   public void testCreateRecord() throws Exception {
-    adminClient.createTopics(Collections.singletonList(new NewTopic(TOPIC_NAME, 1, (short) 1)));
-    final byte[] one_mb_of_data = new byte[900000];
+    String topicName = TOPIC_NAME + timestamp.getTime();
+    adminClient.createTopics(Collections.singletonList(new NewTopic(topicName, 1, (short) 1)));
+    final byte[] data = new byte[900000];
     final ProducerRecord<String, byte[]> producerRecord =
-        new ProducerRecord<>(TOPIC_NAME, KEY_NAME, one_mb_of_data);
+        new ProducerRecord<>(topicName, KEY_NAME, data);
     Future<RecordMetadata> future =
         kafkaProducer.send(
             producerRecord,
@@ -56,8 +49,9 @@ public class CreateRecordTest {
     System.out.println("Record was sent");
     Assert.assertEquals("Offset must be 0", 0, recordMetadata.offset());
     Assert.assertEquals(
-        "Name of the topic must be " + TOPIC_NAME, TOPIC_NAME, recordMetadata.topic());
-    Assert.assertEquals("Value size must be 1 mb", recordMetadata.serializedValueSize(), 900000);
+        "Name of the topic must be " + topicName, topicName, recordMetadata.topic());
+    Assert.assertEquals(
+        "Value size must be " + data.length, recordMetadata.serializedValueSize(), 900000);
   }
 
   @After
@@ -68,10 +62,5 @@ public class CreateRecordTest {
     if (adminClient != null) {
       adminClient.close();
     }
-  }
-
-  @AfterClass
-  public static void tearDownClass() {
-    KAFKA_NODE_CONTAINER.close();
   }
 }
