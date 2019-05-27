@@ -14,7 +14,7 @@ import java.util.logging.Logger;
 public class KafkaNodeContainer implements Closeable {
 
   private static final Logger LOG = Logger.getLogger(KafkaNodeContainer.class.getSimpleName());
-  private static final String IMAGE_NAME = "solsson/kafka:2.1.1";
+  private static final String IMAGE_NAME = "solsson/kafka:2.2.0";
   private static final DockerClient DOCKER_CLIENT = DockerClientBuilder.getInstance().build();
   private static ZookeeperNodeContainer ZOOKEEPER_NODE_CONTAINER;
 
