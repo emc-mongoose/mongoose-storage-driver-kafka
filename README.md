@@ -1,10 +1,16 @@
+[![Gitter chat](https://badges.gitter.im/emc-mongoose.png)](https://gitter.im/emc-mongoose)
+[![Issue Tracker](https://img.shields.io/badge/Issue-Tracker-red.svg)](https://mongoose-issues.atlassian.net/projects/KAFKA)
+[![CI status](https://travis-ci.org/emc-mongoose/mongoose-storage-driver-kafka.svg?branch=master)](https://travis-ci.org/emc-mongoose/mongoose-storage-driver-kafka/builds)
+[![Maven metadata URL](https://img.shields.io/maven-metadata/v/http/central.maven.org/maven2/com/github/emc-mongoose/mongoose-storage-driver-kafka/maven-metadata.xml.svg)](http://central.maven.org/maven2/com/github/emc-mongoose/mongoose-storage-driver-kafka)
+[![Docker Pulls](https://img.shields.io/docker/pulls/emcmongoose/mongoose-storage-driver-kafka.svg)](https://hub.docker.com/r/emcmongoose/mongoose-storage-driver-kafka/)
+
 # Introduction
 
 Kafka storage driver for Mongoose
 
 # Features
 + Item types:
-  * `data item` - Record (ProducerRecord, ConsumerRecord)
+  * `data item` - Record/Message
   * `path` - Topic
 + Data item operation types:
   * `create`

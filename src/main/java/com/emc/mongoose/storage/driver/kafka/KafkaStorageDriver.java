@@ -88,7 +88,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       boolean verifyFlag,
       int batchSize)
       throws IllegalConfigurationException {
-    super(testStepId, dataInput, storageConfig, verifyFlag);
+    super(testStepId, dataInput, storageConfig, verifyFlag, batchSize);
     val driverConfig = storageConfig.configVal("driver");
     val createConfig = driverConfig.configVal("create");
     val headersMap = createConfig.<String>mapVal("headers");
