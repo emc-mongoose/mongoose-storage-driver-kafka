@@ -12,8 +12,6 @@ storage:
       timeoutMillis: 10000
     request:
       size: 1048576
-    batch:
-      size: 16384
     buffer:
       memory: 33554432
     compression:
@@ -23,5 +21,6 @@ storage:
     rcvBuf: 32768
     linger: 0
     node:
-      addrs: []
+      addrs:
+        - 127.0.0.1
       port: 9092
