@@ -20,7 +20,7 @@ Kafka storage driver for Mongoose
     * `read`
     * `delete`
     * `list`
-`
+
 # Design
 
 | Kafka | Mongoose |

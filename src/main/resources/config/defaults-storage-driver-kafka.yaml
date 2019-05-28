@@ -1,14 +1,10 @@
 ---
-load:
-  op:
-    timeoutMillis: 300000
 storage:
   driver:
-    create:
+    record:
       key:
         enabled: false
       headers: {}
-    read:
       timeoutMillis: 10000
     request:
       size: 1048576
