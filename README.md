@@ -132,16 +132,17 @@ Load
 
 **Note about KAFKA benchmark:**
 
-Command line example:
+Command line example of KAFKA benchmark:
 ```
 ./bin/kafka-run-class.sh \
 org.apache.kafka.tools.ProducerPerformance --throughput=-1 \
 --topic=test-one \
 --num-records=50000000 \
---record-size=100 \
+--record-size=1 \
 --producer-props bootstrap.servers=localhost:9092 \
-buffer.memory=67108864 \
+buffer.memory=33554432 \
 batch.size=8196
+
 ```
 Result:
 ```
@@ -153,6 +154,56 @@ Result:
 16228 ms 95th, 
 26685 ms 99th, 
 28510 ms 99.9th.
+```
+
+Command line example of KAFKA storage driver:
+```
+docker run --network host \
+emcmongoose/mongoose-storage-driver-kafka:4.2.8 \
+--load-batch-size=8196 \
+--load-op-limit-count=50000000 \
+--storage-driver-threads=0 \
+--storage-driver-limit-concurrency=0 \
+--item-data-size=1
+
+```
+Result:
+```
+- Load Step Id:                linear_20190602.175420.007
+  Operation Type:              CREATE
+  Node Count:                  1
+  Concurrency:                 
+    Limit Per Storage Driver:  0
+    Actual:                    
+      Last:                    1
+      Mean:                    3.6761363636363638
+  Operations Count:            
+    Successful:                50000000
+    Failed:                    0
+  Transfer Size:               47.68MB
+  Duration [s]:                
+    Elapsed:                   262.642
+    Sum:                       1407833.45569
+  Throughput [op/s]:           
+    Last:                      392868.13960825774
+    Mean:                      190839.69465648854
+  Bandwidth [MB/s]:            
+    Last:                      0.37466830734239626
+    Mean:                      0.1819989153447042
+  Operations Duration [us]:    
+    Avg:                       28186.75960715102
+    Min:                       278
+    LoQ:                       1450
+    Med:                       2387
+    HiQ:                       2522
+    Max:                       4566553
+  Operations Latency [us]:     
+    Avg:                       28173.983034448596
+    Min:                       1
+    LoQ:                       1449
+    Med:                       2386
+    HiQ:                       2520
+    Max:                       4566540
 ```
 Computer configuration:
 + OS - Ubuntu 18.04.2 LTS
