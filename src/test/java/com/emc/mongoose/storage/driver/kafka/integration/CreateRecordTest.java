@@ -1,6 +1,5 @@
 package com.emc.mongoose.storage.driver.kafka.integration;
 
-import java.sql.Timestamp;
 import java.util.Collections;
 import java.util.Properties;
 import java.util.concurrent.*;
@@ -16,11 +15,11 @@ public class CreateRecordTest {
   private static final String TOPIC_NAME = "topic";
   private static final String KEY_NAME = "key";
   private static AdminClient adminClient;
-  private static Timestamp timestamp;
+  private static long timestamp;
 
   @Before
   public void setup() {
-    timestamp = new Timestamp(System.currentTimeMillis());
+    timestamp = System.currentTimeMillis();
     String host_port = "127.0.0.1:9092";
     Properties properties = new Properties();
     properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, host_port);
@@ -33,7 +32,7 @@ public class CreateRecordTest {
 
   @Test
   public void testCreateRecord() throws Exception {
-    String topicName = TOPIC_NAME + timestamp.getTime();
+    String topicName = TOPIC_NAME + timestamp;
     adminClient.createTopics(Collections.singletonList(new NewTopic(topicName, 1, (short) 1)));
     final byte[] data = new byte[900000];
     final ProducerRecord<String, byte[]> producerRecord =
