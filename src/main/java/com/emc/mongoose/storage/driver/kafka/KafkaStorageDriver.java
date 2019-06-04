@@ -409,7 +409,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       for (var i = 0; i < topicOps.size(); i++) {
         val topicOp = topicOps.get(i);
         val topicName = topicOp.item().name();
-        final NewTopic newTopic = new NewTopic(topicName, 1, (short) 1);
+        val newTopic = new NewTopic(topicName, 1, (short) 1);
         try {
           concurrencyThrottle.acquire();
           topicOp.startRequest();
