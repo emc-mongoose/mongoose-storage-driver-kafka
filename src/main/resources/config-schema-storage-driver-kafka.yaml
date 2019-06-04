@@ -1,18 +1,12 @@
 ---
-load:
-  op:
-    timeoutMillis: int
 storage:
   driver:
-    create:
+    record:
       key:
         enabled: boolean
       headers: map
-    read:
       timeoutMillis: long
     request:
-      size: int
-    batch:
       size: int
     buffer:
       memory: long
