@@ -209,8 +209,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
           noop(List.of(op));
           break;
         case CREATE:
-          // createTopics(List.of(op));
-          createTopic((PathOperation) op);
+          createTopics(List.of(op));
           break;
         case DELETE:
           deleteTopics(List.of(op));
@@ -248,10 +247,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
           noop(List.of(op));
           break;
         case CREATE:
-          // createTopics(ops);
-          for (var operation : ops) {
-            createTopic((PathOperation) operation);
-          }
+          createTopics(ops);
           break;
         case DELETE:
           deleteTopics(ops);
@@ -403,40 +399,46 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     }
   }
 
-  void createTopics(final List<O> topicOps) {}
-
-  void createTopic(final PathOperation topicOp) {
-    val nodeAddr = topicOp.nodeAddr();
-    val topicName = topicOp.item().name();
+  void createTopics(final List<O> topicOps) {
+    val nodeAddr = topicOps.get(0).nodeAddr();
     try {
       val config = configCache.computeIfAbsent(nodeAddr, this::createAdminClientConfig);
       val adminClientCreateFunc =
           adminClientCreateFuncCache.computeIfAbsent(config, AdminClientCreateFunctionImpl::new);
       val adminClient = adminClientCache.computeIfAbsent(nodeAddr, adminClientCreateFunc);
-      final NewTopic newTopic = new NewTopic(topicName, 1, (short) 1);
-      topicOp.startRequest();
-      val createTopicResult = adminClient.createTopics(Collections.singleton(newTopic));
-      createTopicResult
-          .all()
-          .whenComplete(
-              ((aVoid, throwable) -> {
-                if (throwable == null) {
-                  completeOperation((O) topicOp, SUCC);
-                } else {
-                  LogUtil.exception(
-                      Level.DEBUG,
-                      throwable,
-                      "{}: Failed to create topic \"{}\"",
-                      stepId,
-                      topicName);
-                }
-              }));
-    } catch (final TopicExistsException e) {
-      LogUtil.exception(Level.DEBUG, e, "{}: Topic \"{}\" already exists", stepId, topicName);
-      completeOperation((O) topicOp, RESP_FAIL_UNKNOWN);
+      for (var i = 0; i < topicOps.size(); i++) {
+        val topicOp = topicOps.get(i);
+        val topicName = topicOp.item().name();
+        final NewTopic newTopic = new NewTopic(topicName, 1, (short) 1);
+        try {
+          concurrencyThrottle.acquire();
+          topicOp.startRequest();
+          val createTopicResult = adminClient.createTopics(Collections.singleton(newTopic));
+          createTopicResult
+              .all()
+              .whenComplete(
+                  ((aVoid, throwable) -> {
+                    if (throwable == null) {
+                      completeOperation((O) topicOp, SUCC);
+                    } else {
+                      LogUtil.exception(
+                          Level.DEBUG,
+                          throwable,
+                          "{}: Failed to create topic \"{}\"",
+                          stepId,
+                          topicName);
+                    }
+                  }));
+          topicOp.finishRequest();
+        } catch (final TopicExistsException e) {
+          LogUtil.exception(Level.DEBUG, e, "{}: Topic \"{}\" already exists", stepId, topicName);
+          completeOperation((O) topicOp, RESP_FAIL_UNKNOWN);
+        } finally {
+          concurrencyThrottle.release();
+        }
+      }
     } catch (final Throwable thrown) {
       throwUncheckedIfInterrupted(thrown);
-      completeFailedOperation((O) topicOp, thrown);
     }
   }
 
