@@ -137,73 +137,76 @@ Command line example of KAFKA benchmark:
 ./bin/kafka-run-class.sh \
 org.apache.kafka.tools.ProducerPerformance --throughput=-1 \
 --topic=test-one \
---num-records=50000000 \
+--num-records=1000000 \
 --record-size=1 \
 --producer-props bootstrap.servers=localhost:9092 \
 buffer.memory=33554432 \
-batch.size=8196
+batch.size=200
 
 ```
 Result:
 ```
-50000000 records sent, 
-68460.889663 records/sec (6.53 MB/sec), 
-8772.19 ms avg latency, 
-29552.00 ms max latency, 
-8072 ms 50th, 
-16228 ms 95th, 
-26685 ms 99th, 
-28510 ms 99.9th.
+1000000 records sent, 
+15973.420229 records/sec (0.02 MB/sec),
+31662.08 ms avg latency, 
+51007.00 ms max latency, 
+32819 ms 50th, 
+48889 ms 95th, 
+50334 ms 99th, 
+50966 ms 99.9th.
 ```
 
 Command line example of KAFKA storage driver:
 ```
 docker run --network host \
 emcmongoose/mongoose-storage-driver-kafka:4.2.8 \
---load-batch-size=8196 \
---load-op-limit-count=50000000 \
+--load-batch-size=200 \
+--load-op-limit-count=1000000 \
 --storage-driver-threads=0 \
 --storage-driver-limit-concurrency=0 \
---item-data-size=1
+--item-data-size=1 \
+--storage-driver-limit-queue-input=5000
 
 ```
 Result:
 ```
-- Load Step Id:                linear_20190602.175420.007
+- Load Step Id:                linear_20190605.192618.289
   Operation Type:              CREATE
   Node Count:                  1
   Concurrency:                 
     Limit Per Storage Driver:  0
     Actual:                    
-      Last:                    1
-      Mean:                    3.6761363636363638
+      Last:                    4
+      Mean:                    3.991404011461318
   Operations Count:            
-    Successful:                50000000
+    Successful:                1000000
     Failed:                    0
-  Transfer Size:               47.68MB
+  Transfer Size:               976.6KB
   Duration [s]:                
-    Elapsed:                   262.642
-    Sum:                       1407833.45569
+    Elapsed:                   38.352
+    Sum:                       15965.63012
   Throughput [op/s]:           
-    Last:                      392868.13960825774
-    Mean:                      190839.69465648854
+    Last:                      47377.75719454598
+    Mean:                      26315.78947368421
   Bandwidth [MB/s]:            
-    Last:                      0.37466830734239626
-    Mean:                      0.1819989153447042
+    Last:                      0.04518295020536993
+    Mean:                      0.02509669253700658
   Operations Duration [us]:    
-    Avg:                       28186.75960715102
-    Min:                       278
-    LoQ:                       1450
-    Med:                       2387
-    HiQ:                       2522
-    Max:                       4566553
+    Avg:                       16028.059411407432
+    Min:                       420
+    LoQ:                       2749
+    Med:                       6820
+    HiQ:                       18396
+    Max:                       1893493
   Operations Latency [us]:     
-    Avg:                       28173.983034448596
+    Avg:                       16007.406134895418
     Min:                       1
-    LoQ:                       1449
-    Med:                       2386
-    HiQ:                       2520
-    Max:                       4566540
+    LoQ:                       2746
+    Med:                       6816
+    HiQ:                       18395
+    Max:                       437531
+...
+
 ```
 Computer configuration:
 + OS - Ubuntu 18.04.2 LTS
