@@ -23,7 +23,7 @@ repositories {
 }
 description = "Mongoose is a high-load storage performance testing tool"
 group = "com.github.emc-mongoose"
-version = "4.2.6"
+version = "4.2.8"
 sourceCompatibility = 11
 targetCompatibility = 11
 
@@ -38,7 +38,8 @@ ext {
 		kafka					 : "2.2.0", 
 		log4j                    : "2.8.2",
 		mongooseBase             : "4.2.11",
-		mongooseStorageDriverPreempt: "4.2.13",
+		mongooseLoadStepPipeline : "4.2.9",
+		mongooseStorageDriverPreempt: "4.2.14",
 		scala                    : "2.12.6",
 	]
 	rootPkg = "com.emc.mongoose.storage.driver.kafka"
@@ -273,7 +274,8 @@ task dockerBuildImage(type: DockerBuildImage) {
 	inputDir = project.projectDir
 	buildArgs = [
 		"BASE_VERSION"       : depVersion.mongooseBase,
-		"STORAGE_DRIVER_COOP_VERSION": depVersion.mongooseStorageDriverCoop,
+		"LOAD_STEP_PIPELINE_VERSION": depVersion.mongooseLoadStepPipeline,
+		"STORAGE_DRIVER_PREEMPT_VERSION": depVersion.mongooseStorageDriverPreempt,
 		"VERSION"            : version,
 	]
 	dockerFile = project.file("ci${File.separator}docker${File.separator}Dockerfile")

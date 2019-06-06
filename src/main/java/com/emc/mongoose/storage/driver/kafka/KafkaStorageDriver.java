@@ -63,7 +63,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private final int linger;
   private final long buffer;
   private final String compression;
-  private final Duration readTimeout;
+  private final Duration recordOpTimeout;
   private final Semaphore concurrencyThrottle;
   private final AtomicInteger rrc = new AtomicInteger(0);
   private final Map<String, Properties> configCache = new ConcurrentHashMap<>();
@@ -88,10 +88,10 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       boolean verifyFlag,
       int batchSize)
       throws IllegalConfigurationException {
-    super(testStepId, dataInput, storageConfig, verifyFlag);
+    super(testStepId, dataInput, storageConfig, verifyFlag, batchSize);
     val driverConfig = storageConfig.configVal("driver");
-    val createConfig = driverConfig.configVal("create");
-    val headersMap = createConfig.<String>mapVal("headers");
+    val recordConfig = driverConfig.configVal("record");
+    val headersMap = recordConfig.<String>mapVal("headers");
     if (!headersMap.isEmpty()) {
       for (final var header : headersMap.entrySet()) {
         final var headerKey = header.getKey();
@@ -108,7 +108,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         }
       }
     }
-    this.useKey = createConfig.boolVal("key-enabled");
+    this.useKey = recordConfig.boolVal("key-enabled");
     this.requestSizeLimit = driverConfig.intVal("request-size");
     this.batchSize = batchSize;
     val netConfig = storageConfig.configVal("net");
@@ -126,10 +126,10 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     this.sndBuf = netConfig.intVal("sndBuf");
     this.rcvBuf = netConfig.intVal("rcvBuf");
     this.linger = netConfig.intVal("linger");
-    val readTimeoutMillis = driverConfig.longVal("read-timeoutMillis");
-    this.readTimeout =
-        readTimeoutMillis > 0
-            ? Duration.ofMillis(readTimeoutMillis)
+    val recordOpTimeoutMillis = recordConfig.longVal("timeoutMillis");
+    this.recordOpTimeout =
+        recordOpTimeoutMillis > 0
+            ? Duration.ofMillis(recordOpTimeoutMillis)
             : Duration.ofDays(Long.MAX_VALUE);
     this.concurrencyThrottle =
         new Semaphore(concurrencyLimit > 0 ? concurrencyLimit : Integer.MAX_VALUE);
@@ -379,7 +379,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
             recOp.startRequest();
             recOp.finishRequest();
           }
-          val pollResult = consumer.poll(readTimeout);
+          val pollResult = consumer.poll(recordOpTimeout);
           val recIter = pollResult.iterator();
           var rec = (ConsumerRecord) null;
           while (recIter.hasNext()) {
