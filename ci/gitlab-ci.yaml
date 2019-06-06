@@ -115,8 +115,8 @@ build_docker_image:
     - cd /opt
     - tar xvf kafka.tgz
     - cd kafka_$SCALA_VERSION-$KAFKA_VERSION
-    - ./bin/zookeeper-server-start.sh config/zookeeper.properties > /tmp/zookeeper_bash.out &
-    - ./bin/kafka-server-start.sh config/server.properties > /tmp/kafka_bash.out &
+    - bash ./bin/zookeeper-server-start.sh config/zookeeper.properties > /tmp/zookeeper_bash.out &
+    - bash ./bin/kafka-server-start.sh config/server.properties > /tmp/kafka_bash.out &
     - cd $HOST_WORKING_DIR
     - export BASE_VERSION=$(cat build.gradle | grep mongooseBase  | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
     - export VERSION=$(cat build.gradle | grep version\ = | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
@@ -127,7 +127,9 @@ build_docker_image:
   - rebot build/robotest/output.xml
   artifacts:
     paths:
-    - build/robotest/*.html
+      - /tmp/kafka_bash.out
+      - /tmp/zookeeper_bash.out
+      - build/robotest/*.html
     when: on_failure
 
 test_create_record:
