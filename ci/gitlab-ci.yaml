@@ -155,9 +155,13 @@ build_docker_image:
   - killall java
   artifacts:
     paths:
-      - /tmp/kafka_bash.out
-      - /tmp/zookeeper_bash.out
+      - tmp/kafka_bash.out
+      - tmp/zookeeper_bash.out
       - build/robotest/*.html
+      - builds/emc-mongoose/mongoose-storage-driver-kafka/build/log/create_record_test/*.log
+      - builds/emc-mongoose/mongoose-storage-driver-kafka/build/log/create_record_test/*.csv
+      - build/log/create_record_test/*.csv
+      - build/log/create_record_test/*.log
     when: on_failure
 
 test_create_record:
