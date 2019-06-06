@@ -56,6 +56,15 @@ Apache Kafka has `AdminClient Api`, which provides function for managing and ins
 ### Create
 [createTopics()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/admin/AdminClient.html#createTopics-java.util.Collection-) creates a batch of new topics.
 * Steps:
+```
+java -jar mongoose-base-4.2.11.jar \
+    --storage-driver-type=kafka \
+    --storage-net-node-addrs=127.0.0.1 \
+    --storage-net-node-port=9092 \
+    --item-type=path \
+    --load-op-limit-count=100 \
+```
+This example creates 100 simple topics. Each topic has one partition and replication factor of one. 
 
 ### Read
 Read all records at once.
