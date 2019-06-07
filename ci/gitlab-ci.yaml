@@ -7,7 +7,7 @@ variables:
   IMAGE_FILE_NAME: build/mongoose-storage-driver-kafka.tar
   JAVA_HOME: /opt/jdk-11.0.2+9
   ROBOTEST_CONTAINER_WORKING_DIR: /root/mongoose
-  SERVICE_HOST: 172.17.0.4 # should be used instead of the "localhost"/"127.0.0.1" in GL CI
+  SERVICE_HOST: 172.17.0.2 # should be used instead of the "localhost"/"127.0.0.1" in GL CI
 services:
   - docker:dind
 stages:
@@ -101,7 +101,7 @@ build_docker_image:
   variables:
     HOST_WORKING_DIR: ${CI_PROJECT_DIR}
     PYTHONPATH: ${PYTHONPATH}:/usr/lib/python2.7/site-packages:src/test/robot/lib
-    SERVICE_HOST: 172.17.0.3
+    SERVICE_HOST: 172.17.0.2
   before_script:
     - apk add --no-cache --update python py-pip
     - pip install -U virtualenv
