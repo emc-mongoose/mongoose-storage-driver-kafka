@@ -131,13 +131,14 @@ Load
 > For recording: KafkaProducer contains thread, the number of threads is equal to the number of producers.
 
 **Note about KAFKA benchmark:**
+> Set KAFKA_HEAP_OPTS="-Xmx1024M" in kafka-run-class.sh 
 
 Command line example of KAFKA benchmark:
 ```
 ./bin/kafka-run-class.sh \
 org.apache.kafka.tools.ProducerPerformance --throughput=-1 \
 --topic=test-one \
---num-records=1000000 \
+--num-records=2000000 \
 --record-size=1 \
 --producer-props bootstrap.servers=localhost:9092 \
 buffer.memory=33554432 \
@@ -146,14 +147,14 @@ batch.size=200
 ```
 Result:
 ```
-1000000 records sent, 
-15973.420229 records/sec (0.02 MB/sec),
-31662.08 ms avg latency, 
-51007.00 ms max latency, 
-32819 ms 50th, 
-48889 ms 95th, 
-50334 ms 99th, 
-50966 ms 99.9th.
+2000000 records sent, 
+16953.750170 records/sec (0.02 MB/sec), 
+58455.55 ms avg latency, 
+80970.00 ms max latency, 
+57215 ms 50th, 
+79765 ms 95th, 
+80630 ms 99th, 
+80933 ms 99.9th.
 ```
 
 Command line example of KAFKA storage driver:
@@ -161,8 +162,8 @@ Command line example of KAFKA storage driver:
 docker run --network host \
 emcmongoose/mongoose-storage-driver-kafka:4.2.8 \
 --load-batch-size=200 \
---load-op-limit-count=1000000 \
---storage-driver-threads=0 \
+--load-op-limit-count=2000000 \
+--storage-driver-threads=1 \
 --storage-driver-limit-concurrency=0 \
 --item-data-size=1 \
 --storage-driver-limit-queue-input=5000
@@ -170,42 +171,43 @@ emcmongoose/mongoose-storage-driver-kafka:4.2.8 \
 ```
 Result:
 ```
-- Load Step Id:                linear_20190605.192618.289
+- Load Step Id:                linear_20190607.181733.007
   Operation Type:              CREATE
   Node Count:                  1
   Concurrency:                 
     Limit Per Storage Driver:  0
     Actual:                    
-      Last:                    4
-      Mean:                    3.991404011461318
+      Last:                    1
+      Mean:                    0.9955257270693513
   Operations Count:            
-    Successful:                1000000
+    Successful:                2000000
     Failed:                    0
-  Transfer Size:               976.6KB
+  Transfer Size:               1.907MB
   Duration [s]:                
-    Elapsed:                   38.352
-    Sum:                       15965.63012
+    Elapsed:                   93.913
+    Sum:                       9763.191236
   Throughput [op/s]:           
-    Last:                      47377.75719454598
-    Mean:                      26315.78947368421
+    Last:                      31365.05419108817
+    Mean:                      21505.37634408602
   Bandwidth [MB/s]:            
-    Last:                      0.04518295020536993
-    Mean:                      0.02509669253700658
+    Last:                      0.029912046614730996
+    Mean:                      0.020509125084005375
   Operations Duration [us]:    
-    Avg:                       16028.059411407432
-    Min:                       420
-    LoQ:                       2749
-    Med:                       6820
-    HiQ:                       18396
-    Max:                       1893493
+    Avg:                       4881.9910592758015
+    Min:                       275
+    LoQ:                       880
+    Med:                       1426
+    HiQ:                       1973
+    Max:                       998292
   Operations Latency [us]:     
-    Avg:                       16007.406134895418
-    Min:                       1
-    LoQ:                       2746
-    Med:                       6816
-    HiQ:                       18395
-    Max:                       437531
+    Avg:                       4876.804555168968
+    Min:                       9
+    LoQ:                       879
+    Med:                       1424
+    HiQ:                       1971
+    Max:                       344294
 ...
+
 
 ```
 Computer configuration:
