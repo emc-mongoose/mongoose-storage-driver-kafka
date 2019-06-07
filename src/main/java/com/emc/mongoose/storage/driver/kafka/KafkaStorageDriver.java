@@ -45,6 +45,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.val;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.ListTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -508,11 +509,11 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     val buff = new ArrayList<I>(1);
 
     if (itemFactory instanceof PathItemFactoryImpl) {
-      val properties = configCache.get("");
-      val adminClient = adminClientCache.get("");
-      ListTopicsResult result = adminClient.listTopics();
+      val properties = configCache.get(endpointAddrs[0]);
+      val adminClient = adminClientCache.get(endpointAddrs[0]);
+      val result = adminClient.listTopics();
       try {
-        for (String topicName : result.names().get()) {
+        for (val topicName : result.names().get()) {
           buff.add(itemFactory.getItem(path + prefix + topicName, 0, 0));
         }
       } catch (InterruptedException e) {
