@@ -143,8 +143,8 @@ build_docker_image:
     - cd /opt
     - tar xvf kafka.tgz
     - cd kafka_$SCALA_VERSION-$KAFKA_VERSION
-    - bash ./bin/zookeeper-server-start.sh config/zookeeper.properties ${SERVICE_HOST}:2181 > /tmp/zookeeper_bash.out &
-    - bash ./bin/kafka-server-start.sh config/server.properties --override host.name=${SERVICE_HOST} --override zookeeper.connect=${SERVICE_HOST}:2181 --override listeners=PLAINTEXT/${SERVICE_HOST}:9092 --override  advertised.listeners=PLAINTEXT://${SERVICE_HOST}:9092  > /tmp/kafka_bash.out &
+    - bash ./bin/zookeeper-server-start.sh config/zookeeper.properties > /tmp/zookeeper_bash.out &
+    - bash ./bin/kafka-server-start.sh config/server.properties --override zookeeper.connect=${SERVICE_HOST}:2181 --override listeners=PLAINTEXT://0.0.0.0:9092 --override  advertised.listeners=PLAINTEXT://${SERVICE_HOST}:9092 > /tmp/kafka_bash.out &
     - cd $HOST_WORKING_DIR
     - export BASE_VERSION=$(cat build.gradle | grep mongooseBase  | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
     - export VERSION=$(cat build.gradle | grep version\ = | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
