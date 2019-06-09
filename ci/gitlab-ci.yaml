@@ -152,8 +152,8 @@ build_docker_image:
     - docker load < ${IMAGE_FILE_NAME}
     - robot --outputdir build/robotest --suite ${SUITE} --include ${TEST} src/test/robot
   after_script:
-  - rebot build/robotest/output.xml
-  - killall java
+    - rebot build/robotest/output.xml
+    - killall java
   artifacts:
     paths:
       - build/robotest/*.html
