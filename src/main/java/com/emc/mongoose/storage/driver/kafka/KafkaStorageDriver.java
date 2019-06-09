@@ -418,6 +418,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
               .all()
               .whenComplete(
                   ((aVoid, throwable) -> {
+                    concurrencyThrottle.release();
                     if (throwable == null) {
                       completeOperation((O) topicOp, SUCC);
                     } else {
