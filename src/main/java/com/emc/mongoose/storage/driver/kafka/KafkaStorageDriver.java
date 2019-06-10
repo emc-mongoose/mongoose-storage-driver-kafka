@@ -406,40 +406,44 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       val adminClientCreateFunc =
           adminClientCreateFuncCache.computeIfAbsent(config, AdminClientCreateFunctionImpl::new);
       val adminClient = adminClientCache.computeIfAbsent(nodeAddr, adminClientCreateFunc);
+      final Collection<NewTopic> topicCollection = new ArrayList<>();
       for (var i = 0; i < topicOps.size(); i++) {
         val topicOp = topicOps.get(i);
         val topicName = topicOp.item().name();
         val newTopic = new NewTopic(topicName, 1, (short) 1);
+        topicCollection.add(newTopic);
+      }
+      concurrencyThrottle.acquire();
+      val createTopicsResult = adminClient.createTopics(topicCollection);
+      for (var i = 0; i < topicOps.size(); i++) {
+        val topicOp = topicOps.get(i);
+        val topicName = topicOp.item().name();
         try {
-          concurrencyThrottle.acquire();
           topicOp.startRequest();
-          val createTopicResult = adminClient.createTopics(Collections.singleton(newTopic));
-          createTopicResult
-              .all()
-              .whenComplete(
-                  ((aVoid, throwable) -> {
-                    concurrencyThrottle.release();
-                    if (throwable == null) {
-                      completeOperation((O) topicOp, SUCC);
-                    } else {
-                      LogUtil.exception(
-                          Level.DEBUG,
-                          throwable,
-                          "{}: Failed to create topic \"{}\"",
-                          stepId,
-                          topicName);
-                    }
-                  }));
+          val oneTopicResult = createTopicsResult.values().get(topicName);
+          oneTopicResult.whenComplete(
+              ((aVoid, throwable) -> {
+                if (throwable == null) {
+                  completeOperation((O) topicOp, SUCC);
+                } else {
+                  LogUtil.exception(
+                      Level.DEBUG,
+                      throwable,
+                      "{}: Failed to create topic \"{}\"",
+                      stepId,
+                      topicName);
+                }
+              }));
           topicOp.finishRequest();
         } catch (final TopicExistsException e) {
           LogUtil.exception(Level.DEBUG, e, "{}: Topic \"{}\" already exists", stepId, topicName);
           completeOperation((O) topicOp, RESP_FAIL_UNKNOWN);
-        } finally {
-          concurrencyThrottle.release();
         }
       }
     } catch (final Throwable thrown) {
       throwUncheckedIfInterrupted(thrown);
+    } finally {
+      concurrencyThrottle.release();
     }
   }
 
