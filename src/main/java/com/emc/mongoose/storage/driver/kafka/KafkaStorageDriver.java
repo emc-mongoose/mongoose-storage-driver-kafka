@@ -423,6 +423,8 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
           val oneTopicResult = createTopicsResult.values().get(topicName);
           oneTopicResult.whenComplete(
               ((aVoid, throwable) -> {
+                topicOp.startResponse();
+                topicOp.finishResponse();
                 if (throwable == null) {
                   completeOperation((O) topicOp, SUCC);
                 } else {
@@ -438,12 +440,22 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         } catch (final TopicExistsException e) {
           LogUtil.exception(Level.DEBUG, e, "{}: Topic \"{}\" already exists", stepId, topicName);
           completeOperation((O) topicOp, RESP_FAIL_UNKNOWN);
+        } finally {
+          concurrencyThrottle.release();
         }
       }
     } catch (final Throwable thrown) {
       throwUncheckedIfInterrupted(thrown);
-    } finally {
-      concurrencyThrottle.release();
+      for (var i = 0; i < topicOps.size(); i++) {
+        val topicOp = topicOps.get(i);
+        completeFailedOperation(topicOp, thrown);
+      }
+      LogUtil.exception(
+          Level.DEBUG,
+          thrown,
+          "{}: unexpected failure while trying to create {} records",
+          stepId,
+          topicOps.size());
     }
   }
 
