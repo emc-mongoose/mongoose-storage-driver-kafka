@@ -168,5 +168,5 @@ To start Mongoose for testing Kafka you need:
 + Take the last preempt dependency ([http://repo1.maven.org/maven2/com/github/emc-mongoose/mongoose-storage-driver-preempt/](http://repo1.maven.org/maven2/com/github/emc-mongoose/mongoose-storage-driver-preempt/)) for Kafka storage driver and put in .mongoose\version_of_mongoose\ext
 + Build Kafka storage driver and put in .mongoose\version_of_mongoose\ext
 + Deploy Apache Kafka
-+ Run Mongoose ```java -jar mongoose-base-4.2.11.jar - store-driver-type = kafka ...```
++ Run Mongoose ```java -jar mongoose-base-x.x.xx.jar - store-driver-type = kafka ...```
 
