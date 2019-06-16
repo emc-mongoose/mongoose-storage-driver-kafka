@@ -406,7 +406,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       val adminClientCreateFunc =
           adminClientCreateFuncCache.computeIfAbsent(config, AdminClientCreateFunctionImpl::new);
       val adminClient = adminClientCache.computeIfAbsent(nodeAddr, adminClientCreateFunc);
-      final Collection<NewTopic> topicCollection = new ArrayList<>();
+      val topicCollection = new ArrayList<NewTopic>();
       for (var i = 0; i < topicOps.size(); i++) {
         val topicOp = topicOps.get(i);
         val topicName = topicOp.item().name();
@@ -423,9 +423,9 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
           val oneTopicResult = createTopicsResult.values().get(topicName);
           oneTopicResult.whenComplete(
               ((aVoid, throwable) -> {
-                topicOp.startResponse();
-                topicOp.finishResponse();
                 if (throwable == null) {
+                  topicOp.startResponse();
+                  topicOp.finishResponse();
                   completeOperation((O) topicOp, SUCC);
                 } else {
                   LogUtil.exception(
@@ -434,12 +434,18 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
                       "{}: Failed to create topic \"{}\"",
                       stepId,
                       topicName);
+                  if (throwable instanceof TopicExistsException) {
+                    LogUtil.exception(
+                        Level.DEBUG,
+                        throwable,
+                        "{}: Topic \"{}\" already exists",
+                        stepId,
+                        topicName);
+                    completeOperation((O) topicOp, RESP_FAIL_UNKNOWN);
+                  }
                 }
               }));
           topicOp.finishRequest();
-        } catch (final TopicExistsException e) {
-          LogUtil.exception(Level.DEBUG, e, "{}: Topic \"{}\" already exists", stepId, topicName);
-          completeOperation((O) topicOp, RESP_FAIL_UNKNOWN);
         } finally {
           concurrencyThrottle.release();
         }
