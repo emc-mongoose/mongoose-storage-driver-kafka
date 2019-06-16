@@ -25,7 +25,7 @@ public class KafkaStorageDriverExtension<
         @Override
         protected final InputStream schemaInputStream() {
           return getClass()
-              .getResourceAsStream("/config-schema-storage-driver-" + DRIVER_NAME + ".yml");
+              .getResourceAsStream("/config-schema-storage-driver-" + DRIVER_NAME + ".yaml");
         }
 
         @Override
@@ -35,7 +35,7 @@ public class KafkaStorageDriverExtension<
       };
 
   private static final String DEFAULTS_FILE_NAME =
-      "defaults-storage-driver-" + DRIVER_NAME + ".yml";
+      "defaults-storage-driver-" + DRIVER_NAME + ".yaml";
 
   private static final List<String> RES_INSTALL_FILES = List.of("config/" + DEFAULTS_FILE_NAME);
 
