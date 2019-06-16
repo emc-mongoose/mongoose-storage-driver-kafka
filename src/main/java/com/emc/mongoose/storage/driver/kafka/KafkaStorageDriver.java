@@ -300,7 +300,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     }
   }
 
-  public void produceRecords(final List<O> recOps) {
+  void produceRecords(final List<O> recOps) {
     val nodeAddr = recOps.get(0).nodeAddr();
     try {
       val config = configCache.computeIfAbsent(nodeAddr, this::createConfig);
@@ -441,7 +441,6 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     var consumerConfig = new Properties();
     consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
     consumerConfig.put(ConsumerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
-    consumerConfig.put("group.id", "test");
     consumerConfig.put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
     try {
       consumerConfig.put(
