@@ -369,7 +369,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         try {
           concurrencyThrottle.acquire();
           var recOp = (DataOperation) null;
-          Set<String> topics = new HashSet<>();
+          val topics = new HashSet<>();
           // mark the request time for all remaining operations
           for (var i = opCount - remainingOpCount; i < opCount; i++) {
             recOp = (DataOperation) recOps.get(i);
