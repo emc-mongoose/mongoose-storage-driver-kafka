@@ -169,7 +169,8 @@ To start Mongoose for testing Kafka you need:
 + Build Kafka storage driver and put in ~/.mongoose\version_of_mongoose\ext
 + Deploy Apache Kafka
 + Run Mongoose 
-```java -jar mongoose-base-x.x.xx.jar --storage-driver-type=kafka \ 
+```
+java -jar mongoose-base-x.x.xx.jar --storage-driver-type=kafka \ 
 --storage-driver-limit-queue-input=10000 \
 --load-batch-size=100 \
 ...
