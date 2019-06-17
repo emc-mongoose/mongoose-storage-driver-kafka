@@ -30,11 +30,7 @@ import com.github.akurilov.confuse.Config;
 import java.io.EOFException;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
@@ -373,12 +369,15 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         try {
           concurrencyThrottle.acquire();
           var recOp = (DataOperation) null;
+          val topics = new HashSet<>();
           // mark the request time for all remaining operations
           for (var i = opCount - remainingOpCount; i < opCount; i++) {
             recOp = (DataOperation) recOps.get(i);
             recOp.startRequest();
             recOp.finishRequest();
+            topics.add(recOp.dstPath());
           }
+          consumer.subscribe(topics);
           val pollResult = consumer.poll(recordOpTimeout);
           val recIter = pollResult.iterator();
           var rec = (ConsumerRecord) null;
@@ -443,6 +442,16 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
     consumerConfig.put(ConsumerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
     consumerConfig.put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
+    try {
+      consumerConfig.put(
+          ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+          Class.forName("org.apache.kafka.common.serialization.StringDeserializer"));
+      consumerConfig.put(
+          ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+          Class.forName("org.apache.kafka.common.serialization.ByteArrayDeserializer"));
+    } catch (ClassNotFoundException e) {
+      LogUtil.exception(Level.DEBUG, e, "{}: operation failed", stepId);
+    }
     return consumerConfig;
   }
 
