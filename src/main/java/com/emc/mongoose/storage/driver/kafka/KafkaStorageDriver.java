@@ -45,6 +45,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.ThreadContext;
@@ -413,42 +414,10 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         val newTopic = new NewTopic(topicName, 1, (short) 1);
         topicCollection.add(newTopic);
       }
-      concurrencyThrottle.acquire();
-      val createTopicsResult = adminClient.createTopics(topicCollection);
+      concurrencyThrottle.acquire(/*topicOps.size()*/ );
+      val createTopicsResultMap = adminClient.createTopics(topicCollection).values();
       for (var i = 0; i < topicOps.size(); i++) {
-        val topicOp = topicOps.get(i);
-        val topicName = topicOp.item().name();
-        try {
-          topicOp.startRequest();
-          val oneTopicResult = createTopicsResult.values().get(topicName);
-          oneTopicResult.whenComplete(
-              ((aVoid, throwable) -> {
-                if (throwable == null) {
-                  topicOp.startResponse();
-                  topicOp.finishResponse();
-                  completeOperation((O) topicOp, SUCC);
-                } else {
-                  LogUtil.exception(
-                      Level.DEBUG,
-                      throwable,
-                      "{}: Failed to create topic \"{}\"",
-                      stepId,
-                      topicName);
-                  if (throwable instanceof TopicExistsException) {
-                    LogUtil.exception(
-                        Level.DEBUG,
-                        throwable,
-                        "{}: Topic \"{}\" already exists",
-                        stepId,
-                        topicName);
-                    completeOperation((O) topicOp, RESP_FAIL_UNKNOWN);
-                  }
-                }
-              }));
-          topicOp.finishRequest();
-        } finally {
-          concurrencyThrottle.release();
-        }
+        hanldeTopicCreateOperation(topicOps.get(i), createTopicsResultMap);
       }
     } catch (final Throwable thrown) {
       throwUncheckedIfInterrupted(thrown);
@@ -463,6 +432,36 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
           stepId,
           topicOps.size());
     }
+  }
+
+  KafkaFuture.BiConsumer<Void, Throwable> handleTopicCreateFuture(final PathOperation topicOp) {
+    val topicName = topicOp.item().name();
+    KafkaFuture.BiConsumer<Void, Throwable> action =
+        (aVoid, throwable) -> {
+          if (throwable == null) {
+            topicOp.startResponse();
+            topicOp.finishResponse();
+            completeOperation((O) topicOp, SUCC);
+          } else {
+            LogUtil.exception(
+                Level.DEBUG, throwable, "{}: Failed to create topic \"{}\"", stepId, topicName);
+            if (throwable instanceof TopicExistsException) {
+              LogUtil.exception(
+                  Level.DEBUG, throwable, "{}: Topic \"{}\" already exists", stepId, topicName);
+            }
+            completeOperation((O) topicOp, RESP_FAIL_UNKNOWN);
+          }
+          concurrencyThrottle.release();
+        };
+    return action;
+  }
+
+  void hanldeTopicCreateOperation(final O topicOp, final Map<String, KafkaFuture<Void>> resultMap) {
+    val topicName = topicOp.item().name();
+    topicOp.startRequest();
+    val oneTopicResult = resultMap.get(topicName);
+    oneTopicResult.whenComplete(handleTopicCreateFuture((PathOperation) topicOp));
+    topicOp.finishRequest();
   }
 
   void deleteTopics(final List<O> topicOps) {}
