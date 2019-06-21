@@ -414,7 +414,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         val newTopic = new NewTopic(topicName, 1, (short) 1);
         topicCollection.add(newTopic);
       }
-      concurrencyThrottle.acquire(/*topicOps.size()*/ );
+      concurrencyThrottle.acquire(topicOps.size());
       val createTopicsResultMap = adminClient.createTopics(topicCollection).values();
       for (var i = 0; i < topicOps.size(); i++) {
         hanldeTopicCreateOperation(topicOps.get(i), createTopicsResultMap);
