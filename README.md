@@ -4,11 +4,65 @@
 [![Maven metadata URL](https://img.shields.io/maven-metadata/v/http/central.maven.org/maven2/com/github/emc-mongoose/mongoose-storage-driver-kafka/maven-metadata.xml.svg)](http://central.maven.org/maven2/com/github/emc-mongoose/mongoose-storage-driver-kafka)
 [![Docker Pulls](https://img.shields.io/docker/pulls/emcmongoose/mongoose-storage-driver-kafka.svg)](https://hub.docker.com/r/emcmongoose/mongoose-storage-driver-kafka/)
 
-# Introduction
+# Content
 
-Kafka storage driver for Mongoose
+1. [Introduction](#1.-introduction)<br/>
+2. [Features](#2.-features)<br/>
+3. [Deployment](#3.-deployment)<br/>
+&nbsp;&nbsp;3.1. [Basic](#3.1.-basic)<br/>
+&nbsp;&nbsp;3.2. [Docker](#3.2.-docker)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;3.2.1. [Standalone](#3.2.1.-standalone)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;3.2.2. [Distributed](#3.2.2.-distributed)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.2.2.1. [Additional Node](#3.2.2.1.-additional-node)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.2.2.2. [Entry Node](#3.2.2.2.-entry-node)<br/>
+4. [Configuration](#4.-configuration)<br/>
+&nbsp;&nbsp;4.1. [Specific Options](#4.1.-specific-options)<br/>
+&nbsp;&nbsp;4.2. [Tuning](#4.2.-tuning)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;4.2.1. [Concurrency](#4.2.1.-concurrency)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;4.2.2. [Inherited Storage Driver Usage Warnings](#4.2.2.-inherited-storage-driver-usage-warnings)<br/>
+5. [Usage](#5.-usage)<br/>
+&nbsp;&nbsp;5.1. [Record Operations](#5.1.-record-operations)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;5.1.1. [Create](#5.1.1.-create)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5.1.1.1. [Transactional](#5111-transactional)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;5.1.2. [Read](#5.1.2.-read)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;5.1.3. [Update](#5.1.3.-update)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;5.1.4. [Delete](#5.1.4.-delete)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;5.1.5. [List](#5.1.5.-list)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;5.1.6. [End-to-end Latency](#5.1.6.-end-to-end-latency)<br/>
+&nbsp;&nbsp;5.2. [Topic Operations](#5.2.-topic-operations)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;5.2.1. [Create](#5.2.1.-create)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;5.2.2. [Read](#5.2.2.-read)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;5.2.3. [Update](#5.2.3.-update)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;5.2.4. [Delete](#5.2.4.-delete)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;5.2.5. [List](#5.2.5.-list)<br/>
+&nbsp;&nbsp;5.3. [Custom Kafka Headers](#5.3.-custom-kafka-headers)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;5.3.1. [Expressions](#5.3.1.-expressions)<br/>
+6. [Performance](#6.-performance)<br/>
+&nbsp;&nbsp;6.1. [Compariosn of Mongoose Kafka Storage Driver and Kafka Benchmark](#6.1.-comparison-of-mongoose-kafka-storage-driver-and-kafka-benchmark)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;6.1.1. [Records Creating](#6.1.1.-records-creating)<br/>
+7. [Open Issues](#7.-open-issues)<br/>
+8. [Development](#8.-development)<br/>
+&nbsp;&nbsp;8.1. [Build](#8.1.-build)<br/>
+&nbsp;&nbsp;8.2. [Test](#8.2.-test)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;8.2.1. [Manual](#8.2.1.-manual)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;8.2.2. [Automated](#8.2.2.-automated)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8.2.2.1. [Unit](#8.2.2.1.-unit)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8.2.2.2. [Integration](#8.2.2.2.-integration)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8.2.2.3. [Functional](#8.2.2.3.-functional)<br/>
 
-# Features
+# 1. Introduction
+
+Mongoose and Kafka are using quite different concepts. So it's necessary to determine how
+[Kafka-specific terms](https://kafka.apache.org/intro) are mapped to the
+[Mongoose abstractions]((https://gitlab.com/emcmongoose/mongoose/tree/master/doc/design/architecture#1-basic-terms)).
+
+| Kafka | Mongoose |
+|---------|----------|
+| Record | *Data Item* |
+| Topic | *Path Item* |
+| Partition | N/A |
+
+# 2. Features
 + Item types:
   * `data item` - Record/Message
   * `path` - Topic
@@ -16,61 +70,84 @@ Kafka storage driver for Mongoose
   * `create`
   * `read`
 + Path item operation types:
-    * `create`
-    * `read`
-    * `delete`
-    * `list`
+  * `create`
+  * `read`
+  * `delete`
+  * `list`
++ Storage specific:
+  * Records' keys
+  * Compression type for producer's data
 
-# Design
+# 3. Deployment
 
-| Kafka | Mongoose |
-|---------|----------|
-| Record | *Data Item* |
-| Topic | *Path Item* |
-| Partition | N/A |
-## Record Operations
+## 3.1. Basic
 
-Mongoose should perform the load operations on the *records* when the configuration option `item-type` is set to `data`.
+Java 11+ is required to build/run.
 
-### Create
-`ProducerApi` has a `KafkaProducer` class with function  [send()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/producer/KafkaProducer.html#send-org.apache.kafka.clients.producer.ProducerRecord-org.apache.kafka.clients.producer.Callback-), which can send a record to topic.
-* Steps:
+1. Get the latest `mongoose-base` jar from the 
+[maven repo](http://repo.maven.apache.org/maven2/com/github/emc-mongoose/mongoose-base/)
+and put it to your working directory. Note the particular version, which is referred as *BASE_VERSION* below.
 
-### Read
-`ConsumerApi` has a `KafkaConsumer` class, provided with function [poll()](https://kafka.apache.org/10/javadoc/org/apache/kafka/clients/consumer/Consumer.html#poll-long-). According to Kafka documentation, on each poll Consumer  begins to consume records from last offset.
-* Steps:
+2. Get the latest `mongoose-storage-driver-preempt` jar from the
+[maven repo](http://repo.maven.apache.org/maven2/com/github/emc-mongoose/mongoose-storage-driver-preempt/)
+and put it to the `~/.mongoose/<BASE_VERSION>/ext` directory.
 
-### Update
-Not supported. 
+3. Get the latest `mongoose-storage-driver-kafka` jar from the
+[maven repo](http://repo.maven.apache.org/maven2/com/github/emc-mongoose/mongoose-storage-driver-kafka/)
+and put it to the `~/.mongoose/<BASE_VERSION>/ext` directory.
 
-### Delete
-[deleteRecords()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/admin/AdminClient.html#deleteRecords-java.util.Map-org.apache.kafka.clients.admin.DeleteRecordsOptions-) function from AdminClient(AdminClient API) class, deletes all records before the one with giving offset.
+```bash
+java -jar mongoose-base-<BASE_VERSION>.jar \
+    --storage-driver-type=kafka \
+    --storage-net-node-addrs=<NODE_IP_ADDRS> \
+    --storage-net-node-port=9092 \
+    --storage-driver-create-key-enabled=false \
+    --storage-driver-compression-type=none \
+    --item-data-size=1KB \
+    ...
+```
 
-### List
-Not supported.
+## 3.2. Docker
 
-## Topic Operations
+### 3.2.1. Standalone
 
-Mongoose should perform the load operations on the *topic* when the configuration option `item-type` is set to `path`.
-Apache Kafka has `AdminClient Api`, which provides function for managing and inspecting topics. 
-### Create
-[createTopics()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/admin/AdminClient.html#createTopics-java.util.Collection-) creates a batch of new topics.
-* Steps:
+```bash
+docker run \
+    --network host \
+    emcmongoose/mongoose-storage-driver-kafka \
+    --storage-net-node-addrs=<NODE_IP_ADDRS> \
+    --storage-driver-create-key-enabled=false \
+    --storage-driver-compression-type=none \
+    ...
+```
 
-### Read
-Read all records at once.
-### Update
-Not supported
+### 3.2.2. Distributed
 
-### Delete
-[deleteTopics()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/admin/AdminClient.html#deleteTopics-java.util.Collection-) deletes a batch of topics.
-* Steps:
+#### 3.2.2.1. Additional Node
 
-### List
-[listTopics()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/admin/AdminClient.html#listTopics--) returns list of topics
-* Steps:
+```bash
+docker run \
+    --network host \
+    --expose 1099 \
+    emcmongoose/mongoose-storage-driver-kafka \
+    --run-node
+```
 
-## Specific Configuration Options
+#### 3.2.2.2. Entry Node
+
+```bash
+docker run \
+    --network host \
+    emcmongoose/mongoose-storage-driver-kafka \
+    --load-step-node-addrs=<ADDR1,ADDR2,...> \
+    --storage-net-node-addrs=<NODE_IP_ADDRS> \
+    --storage-driver-create-key-enabled=false \
+    --storage-driver-compression-type=none \
+```
+
+# 4. Configuration
+
+## 4.1. Specific Options
 
 | Name | Type | Default Value | Description |
 |---------|----------|----------|----------|
@@ -85,7 +162,114 @@ Not supported
 | storage-net-node-addrs | list | "" | A list of host/port pairs to use for establishing the initial connection to the Kafka cluster.  This list should be in the form *host1:port1*,*host2:port2* |
 | storage-net-node-port | integer | 9092 | The common port number to access the storage nodes, may be overriden adding the port number to the storage-driver-addrs, for example: "127.0.0.1:9020,127.0.0.1:9022,..." |
 
-## Custom Kafka Headers
+## 4.2. Tuning
+
+### 4.2.1. Concurrency
+
+There are two configuration options controlling the load operations concurrency level.
+
+* `storage-driver-limit-concurrency`
+Limits the count of the active load operations at any moment of the time. The best practice is to set it to 0 (unlimited
+concurrency for the asynchronous operations, aka the *top gear of the "burst mode"*).
+
+* `storage-driver-threads`
+The count of the threads running/submitting the load operations execution. The meaningful values are usually only few
+times more than the count of the available CPU threads.
+
+### 4.2.2. Inherited Storage Driver Usage Warnings
+
+See the [design notes](https://github.com/emc-mongoose/mongoose-storage-driver-preempt#design)
+
+# 5. Usage
+
+## 5.1. Record Operations
+
+Mongoose should perform the load operations on the *records* when the configuration option `item-type` is set to `data`.
+
+### 5.1.1. Create
+`ProducerApi` has a `KafkaProducer` class with function  [send()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/producer/KafkaProducer.html#send-org.apache.kafka.clients.producer.ProducerRecord-org.apache.kafka.clients.producer.Callback-), which can send a record to topic.
+* Steps:
+
+**Note:**
+> KafkaProducer contains thread, the number of threads is equal to the number of producers.
+
+### 5.1.2. Read
+`ConsumerApi` has a `KafkaConsumer` class, provided with function [poll()](https://kafka.apache.org/10/javadoc/org/apache/kafka/clients/consumer/Consumer.html#poll-long-). According to Kafka documentation, on each poll Consumer  begins to consume records from last offset.
+* Steps:
+
+**Note:**
+> num.consumer.fetchers	— the number fetcher threads used to fetch data, default value = 1.
+
+### 5.1.3. Update
+Not supported. 
+
+### 5.1.4. Delete
+[deleteRecords()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/admin/AdminClient.html#deleteRecords-java.util.Map-org.apache.kafka.clients.admin.DeleteRecordsOptions-) function from AdminClient(AdminClient API) class, deletes all records before the one with giving offset.
+
+### 5.1.5. List
+Not supported.
+
+### 5.1.6. End-to-end Latency
+
+The end-to-end latency is a time span between the CREATE and READ operations executed for the same item. The end-to-end 
+latency may be measured using Mongoose's 
+[Pipeline Load extension](https://github.com/emc-mongoose/mongoose-load-step-pipeline) which is included into this 
+extension's docker image. To do this, it's necessary to produce the raw operations trace data.
+
+Scenario example:
+<https://github.com/emc-mongoose/mongoose-storage-driver-pravega/blob/master/src/test/robot/api/storage/data/e2e_latency.js>
+
+Command line example:
+```bash
+docker run \
+    --network host \
+    --volume "$(pwd)"/src/test/robot/api/storage/data:/root \
+    --volume /tmp/log:/root/.mongoose/<BASE_VERSION>/log \
+    emcmongoose/mongoose-storage-driver-kafka \
+    --item-output-path=topic1 \
+    --run-scenario=/root/e2e_latency.js \
+    --load-step-id=e2e_latency \
+    --item-data-size=10KB \
+    --load-op-limit-count=100000 \
+    --output-metrics-trace-persist
+```
+
+Once the raw operations trace data is obtained, it may be used to produce the end-to-end latency data using the tool:
+<https://github.com/emc-mongoose/e2e-latency-generator>
+
+## 5.2. Topic Operations
+
+Mongoose should perform the load operations on the *topic* when the configuration option `item-type` is set to `path`.
+Apache Kafka has `AdminClient Api`, which provides function for managing and inspecting topics. 
+
+### 5.2.1. Create
+[createTopics()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/admin/AdminClient.html#createTopics-java.util.Collection-) creates a batch of new topics.
+* Steps:
+```
+java -jar mongoose-base-4.2.11.jar \
+    --storage-driver-type=kafka \
+    --storage-net-node-addrs=127.0.0.1 \
+    --storage-net-node-port=9092 \
+    --item-type=path \
+    --load-op-limit-count=100 \
+```
+This example creates 100 simple topics. Each topic has one partition and replication factor of one. 
+
+### 5.2.2. Read
+Read all records at once.
+
+### 5.2.3. Update
+Not supported
+
+### 5.2.4. Delete
+[deleteTopics()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/admin/AdminClient.html#deleteTopics-java.util.Collection-) deletes a batch of topics.
+* Steps:
+
+### 5.2.5. List
+[listTopics()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/admin/AdminClient.html#listTopics--) returns list of topics
+* Steps:
+
+## 5.3. Custom Kafka Headers
 
 Scenario example:
 
@@ -111,7 +295,8 @@ Load
 
 **Note**:
 > Don't use the command line arguments for the custom Kafka headers setting.
-### Expressions
+
+### 5.3.1. Expressions
 
 Scenario example, note both the parameterized header name and value:
 ```javascript
@@ -130,10 +315,11 @@ Load
     .config(varKafkaHeadersConfig)
     .run();
 ```
-**Notes:**
-> For reading: num.consumer.fetchers	- the number fetcher threads used to fetch data, default value = 1.
+# 6. Performance
 
-> For recording: KafkaProducer contains thread, the number of threads is equal to the number of producers.
+## 6.1. Comparison of Mongoose Kafka Storage Driver and Kafka Benchmark
+
+### 6.1.1. Records Creating
 
 **Note about KAFKA benchmark:**
 > Set KAFKA_HEAP_OPTS="-Xmx1024M" in kafka-run-class.sh 
@@ -221,4 +407,68 @@ Computer configuration:
 + Processor - Intel® Core™ i5-6200U CPU @ 2.30GHz × 4 
 + OS type - 64-bit
 
+# 7. Open Issues
+
+| Issue | Description |
+|-------|-------------|
+
+# 8. Development
+
+## 8.1. Build
+Use command below to build the driver
+```bash
+./gradlew clean jar
+```
+
+## 8.2. Test
+
+### 8.2.1. Manual
+
+1. [Build the storage driver](#8.1.-build)
+2. Copy the storage driver's jar file into the mongoose's `ext` directory:
+   ```bash
+   cp -f build/libs/mongoose-storage-driver-kafka-*.jar ~/.mongoose/<MONGOOSE_BASE_VERSION>/ext/
+   ```
+   Note that the Kafka storage driver depends on the 
+   [Preemptive Storage Driver](http://repo.maven.apache.org/maven2/com/github/emc-mongoose/mongoose-storage-driver-preempt/) 
+   extension so it should be also put into the `ext` directory
+
+3. Build and install the corresponding [Kafka version](https://kafka.apache.org/quickstart).
+   
+4. Run the Kafka standalone node:
+   ```bash
+   bin/zookeeper-server-start.sh config/zookeeper.properties
+   bin/kafka-server-start.sh config/server.properties
+   ```
+5. Run Mongoose's default scenario with some specific command-line arguments:
+    ```bash
+    java -jar mongoose-base-<BASE_VERSION>.jar \
+        --storage-driver-type=kafka \
+        --storage-net-node-addrs=<NODE_IP_ADDRS> \
+        --storage-net-node-port=9092 \
+        --item-data-size=1KB \
+        --load-op-limit-count=100 \
+    ```
+
+### 8.2.2. Automated
+
+#### 8.2.2.1. Unit
+
+```bash
+./gradlew clean test
+```
+
+#### 8.2.2.2. Integration
+
+```bash
+./gradlew integrationTest
+```
+
+#### 8.2.2.3. Functional
+
+```bash
+./gradlew jar
+export SUITE=api.storage
+TEST=create_record ./gradlew robotest
+```
 
