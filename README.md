@@ -251,8 +251,12 @@ java -jar mongoose-base-4.2.11.jar \
     --storage-net-node-port=9092 \
     --item-type=path \
     --load-op-limit-count=100 \
+    --storage-driver-limit-concurrency=100 \
 ```
 This example creates 100 simple topics. Each topic has one partition and replication factor of one. 
+
+**Note:**
+> storage-driver-limit-concurrency must equal to load-batch-size because of concurrencyTrottle.acquire(batchSize).
 
 ### 5.2.2. Read
 Read all records at once.
