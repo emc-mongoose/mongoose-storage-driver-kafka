@@ -365,22 +365,17 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       val consumerConfig = createConsumerConfig(nodeAddr);
       // set the records count limit equal to the remaining read operations count
       consumerConfig.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, remainingOpCount);
-      var recOp = (DataOperation) null;
       try (val consumer = new KafkaConsumer(consumerConfig)) {
         try {
           concurrencyThrottle.acquire();
+          var recOp = (DataOperation) null;
           val topics = new HashSet<>();
           // mark the request time for all remaining operations
           for (var i = opCount - remainingOpCount; i < opCount; i++) {
             recOp = (DataOperation) recOps.get(i);
             recOp.startRequest();
             recOp.finishRequest();
-            val topicName =
-                recOp
-                    .srcPath()
-                    .substring(
-                        recOp.srcPath().contains("/") ? recOp.srcPath().indexOf("/") + 1 : 0);
-            topics.add(topicName);
+            topics.add(recOp.dstPath());
           }
           consumer.subscribe(topics);
           val pollResult = consumer.poll(recordOpTimeout);
@@ -400,7 +395,6 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
           concurrencyThrottle.release();
         }
       } catch (final Throwable e) {
-        completeFailedOperation((O) recOp, e);
         throwUncheckedIfInterrupted(e);
       }
     }
@@ -445,12 +439,9 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   Properties createConsumerConfig(String nodeAddr) {
     var consumerConfig = new Properties();
-    consumerConfig.setProperty(
-        ConsumerConfig.CLIENT_ID_CONFIG, String.valueOf(System.currentTimeMillis()));
     consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
     consumerConfig.put(ConsumerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
     consumerConfig.put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
-    consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, "group");
     try {
       consumerConfig.put(
           ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
