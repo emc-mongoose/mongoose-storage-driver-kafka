@@ -74,7 +74,7 @@ Not supported
 
 | Name | Type | Default Value | Description |
 |---------|----------|----------|----------|
-| load-op-timeoutMillis | integer | 300000 | The event read and create timeout in milliseconds |
+| storage-driver-record-timeoutMillis | long | 10000 | The event read and create timeout in milliseconds |
 | storage-driver-create-key-enabled | boolean | false | Creates a record with or without a key |
 | storage-net-sndBuf | integer | 131072 | The size of the TCP send buffer to use when sending data. If the value is -1, the OS default will be used. |
 | storage-net-rcvBuf | integer | 32768 | The size of the TCP receive buffer to use when reading data. If the value is -1, the OS default will be used. |
