@@ -9,9 +9,7 @@ import static com.github.akurilov.commons.lang.Exceptions.throwUnchecked;
 
 import com.emc.mongoose.base.config.IllegalConfigurationException;
 import com.emc.mongoose.base.data.DataInput;
-import com.emc.mongoose.base.item.DataItem;
-import com.emc.mongoose.base.item.Item;
-import com.emc.mongoose.base.item.ItemFactory;
+import com.emc.mongoose.base.item.*;
 import com.emc.mongoose.base.item.op.OpType;
 import com.emc.mongoose.base.item.op.Operation;
 import com.emc.mongoose.base.item.op.Operation.Status;
@@ -34,10 +32,10 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.val;
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.admin.*;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -75,7 +73,6 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private final Map<String, NewTopic> topicCache = new ConcurrentHashMap<>();
   protected final Map<String, String> sharedHeaders = new HashMap<>();
   protected final Map<String, String> dynamicHeaders = new HashMap<>();
-  private volatile boolean listWasCalled = false;
 
   public KafkaStorageDriver(
       String testStepId,
@@ -503,13 +500,28 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       final I lastPrevItem,
       final int count)
       throws IOException {
-    if (listWasCalled) {
-      throw new EOFException();
+
+    final List<I> items = new ArrayList<I>(1);
+    ;
+    if (itemFactory instanceof DataItemFactoryImpl) {
+      items.add(itemFactory.getItem(path + prefix, 0, 0));
+    } else if (itemFactory instanceof PathItemFactoryImpl) {
+      Properties properties = new Properties();
+      properties.put(
+              AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+      AdminClient adminClient = KafkaAdminClient.create(properties);
+      ListTopicsResult result = adminClient.listTopics();
+      try {
+        for (String topicName : result.names().get()) {
+          items.add(itemFactory.getItem(path + prefix + topicName, 0, 0));
+        }
+      } catch (final InterruptedException e) {
+        throwUnchecked(e);
+      } catch (final ExecutionException e) {
+        LogUtil.exception(Level.WARN, e, "Topics listing failure");
+      }
     }
-    val buff = new ArrayList<I>(1);
-    buff.add(itemFactory.getItem(path + prefix, 0, 0));
-    listWasCalled = true;
-    return buff;
+    return items;
   }
 
   @Override
