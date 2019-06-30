@@ -271,3 +271,207 @@ Not supported
 ### 5.2.5. List
 [listTopics()](http://kafka.apache.org/21/javadoc/org/apache/kafka/clients/admin/AdminClient.html#listTopics--) returns list of topics
 * Steps:
+
+## 5.3. Custom Kafka Headers
+
+Scenario example:
+
+```javascript
+var customKafkaHeadersConfig = {
+    "storage" : {
+        "driver" : {
+            "create" : {
+                "headers" : {
+                    "header-name-0" : "header_value_0",
+                    "header-name-1" : "header_value_1",
+                    // ...
+                    "header-name-N" : "header_value_N"
+                }
+            }
+        }
+    }
+};
+Load
+    .config(customKafkaHeadersConfig)
+    .run();
+```
+
+**Note**:
+> Don't use the command line arguments for the custom Kafka headers setting.
+
+### 5.3.1. Expressions
+
+Scenario example, note both the parameterized header name and value:
+```javascript
+var varKafkaHeadersConfig = {
+    "storage" : {
+        "driver" : {
+            "create" : {
+                "headers" : {
+                    "x-amz-meta-${math:random(30) + 1}" : "${date:format("yyyy-MM-dd'T'HH:mm:ssZ").format(date:from(rnd.nextLong(time:millisSinceEpoch())))}"
+                }
+            }
+        }
+    }
+};
+Load
+    .config(varKafkaHeadersConfig)
+    .run();
+```
+# 6. Performance
+
+## 6.1. Comparison of Mongoose Kafka Storage Driver and Kafka Benchmark
+
+### 6.1.1. Records Creating
+
+**Note about KAFKA benchmark:**
+> Set KAFKA_HEAP_OPTS="-Xmx1024M" in kafka-run-class.sh 
+
+Command line example of KAFKA benchmark:
+```
+./bin/kafka-run-class.sh \
+org.apache.kafka.tools.ProducerPerformance --throughput=-1 \
+--topic=test-one \
+--num-records=2000000 \
+--record-size=1 \
+--producer-props bootstrap.servers=localhost:9092 \
+buffer.memory=33554432 \
+batch.size=200
+
+```
+Result:
+```
+2000000 records sent, 
+16953.750170 records/sec (0.02 MB/sec), 
+58455.55 ms avg latency, 
+80970.00 ms max latency, 
+57215 ms 50th, 
+79765 ms 95th, 
+80630 ms 99th, 
+80933 ms 99.9th.
+```
+
+Command line example of KAFKA storage driver:
+```
+docker run --network host \
+emcmongoose/mongoose-storage-driver-kafka:4.2.8 \
+--load-batch-size=200 \
+--load-op-limit-count=2000000 \
+--storage-driver-threads=1 \
+--storage-driver-limit-concurrency=0 \
+--item-data-size=1 \
+--storage-driver-limit-queue-input=5000
+
+```
+Result:
+```
+- Load Step Id:                linear_20190607.181733.007
+  Operation Type:              CREATE
+  Node Count:                  1
+  Concurrency:                 
+    Limit Per Storage Driver:  0
+    Actual:                    
+      Last:                    1
+      Mean:                    0.9955257270693513
+  Operations Count:            
+    Successful:                2000000
+    Failed:                    0
+  Transfer Size:               1.907MB
+  Duration [s]:                
+    Elapsed:                   93.913
+    Sum:                       9763.191236
+  Throughput [op/s]:           
+    Last:                      31365.05419108817
+    Mean:                      21505.37634408602
+  Bandwidth [MB/s]:            
+    Last:                      0.029912046614730996
+    Mean:                      0.020509125084005375
+  Operations Duration [us]:    
+    Avg:                       4881.9910592758015
+    Min:                       275
+    LoQ:                       880
+    Med:                       1426
+    HiQ:                       1973
+    Max:                       998292
+  Operations Latency [us]:     
+    Avg:                       4876.804555168968
+    Min:                       9
+    LoQ:                       879
+    Med:                       1424
+    HiQ:                       1971
+    Max:                       344294
+...
+
+
+```
+Computer configuration:
++ OS - Ubuntu 18.04.2 LTS
++ Memory - 3.8 GiB
++ Processor - Intel® Core™ i5-6200U CPU @ 2.30GHz × 4 
++ OS type - 64-bit
+
+# 7. Open Issues
+
+| Issue | Description |
+|-------|-------------|
+
+# 8. Development
+
+## 8.1. Build
+Use command below to build the driver
+```bash
+./gradlew clean jar
+```
+
+## 8.2. Test
+
+### 8.2.1. Manual
+
+1. [Build the storage driver](#8.1.-build)
+2. Copy the storage driver's jar file into the mongoose's `ext` directory:
+   ```bash
+   cp -f build/libs/mongoose-storage-driver-kafka-*.jar ~/.mongoose/<MONGOOSE_BASE_VERSION>/ext/
+   ```
+   Note that the Kafka storage driver depends on the 
+   [Preemptive Storage Driver](http://repo.maven.apache.org/maven2/com/github/emc-mongoose/mongoose-storage-driver-preempt/) 
+   extension so it should be also put into the `ext` directory
+
+3. Build and install the corresponding [Kafka version](https://kafka.apache.org/quickstart).
+   
+4. Run the Kafka standalone node:
+   ```bash
+   bin/zookeeper-server-start.sh config/zookeeper.properties
+   bin/kafka-server-start.sh config/server.properties
+   ```
+5. Run Mongoose's default scenario with some specific command-line arguments:
+    ```bash
+    java -jar mongoose-base-<BASE_VERSION>.jar \
+        --storage-driver-type=kafka \
+        --storage-net-node-addrs=<NODE_IP_ADDRS> \
+        --storage-net-node-port=9092 \
+        --item-data-size=1KB \
+        --load-op-limit-count=100 \
+    ```
+
+### 8.2.2. Automated
+
+#### 8.2.2.1. Unit
+
+```bash
+./gradlew clean test
+```
+
+#### 8.2.2.2. Integration
+
+```bash
+./gradlew integrationTest
+```
+
+#### 8.2.2.3. Functional
+
+```bash
+./gradlew jar
+export SUITE=api.storage
+TEST=create_record ./gradlew robotest
+```
+
