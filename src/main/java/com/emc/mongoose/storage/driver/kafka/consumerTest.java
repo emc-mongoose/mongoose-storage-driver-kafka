@@ -17,6 +17,7 @@ public class consumerTest {
     final Properties consProps = new Properties();
     consProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
     consProps.put(ConsumerConfig.GROUP_ID_CONFIG, "testGroup");
+    consProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     consProps.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "1000");
     consProps.put(
         ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
