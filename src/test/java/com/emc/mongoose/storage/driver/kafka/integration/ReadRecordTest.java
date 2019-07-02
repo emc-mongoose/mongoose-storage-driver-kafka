@@ -29,7 +29,7 @@ public class ReadRecordTest {
   private static final String KEY_NAME = "key" + ReadRecordTest.class.getSimpleName();
   private static final String DATA = "test-record";
   private static final String IP = "localhost:9092";
-  private static final Duration TIMEOUT = Duration.ofMillis(1000);
+  private static final Duration TIMEOUT = Duration.ofMillis(1000*5);
   private static final Duration TIMEOUT_ZERO = Duration.ZERO;
 
   @Before
