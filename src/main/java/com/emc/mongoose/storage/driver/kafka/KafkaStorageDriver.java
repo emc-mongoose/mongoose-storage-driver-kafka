@@ -212,6 +212,9 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         case CREATE:
           createTopics(List.of(op));
           break;
+        case READ:
+          readTopics(List.of(op));
+          break;
         case DELETE:
           deleteTopics(List.of(op));
           break;
@@ -249,6 +252,9 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
           break;
         case CREATE:
           createTopics(ops);
+          break;
+        case READ:
+          readTopics(ops);
           break;
         case DELETE:
           deleteTopics(ops);
@@ -437,7 +443,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       LogUtil.exception(
           Level.DEBUG,
           thrown,
-          "{}: unexpected failure while trying to create {} records",
+          "{}: unexpected failure while trying to create {} topics",
           stepId,
           topicOps.size());
     }
@@ -471,6 +477,60 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     val oneTopicResult = resultMap.get(topicName);
     oneTopicResult.whenComplete(handleTopicCreateFuture((PathOperation) topicOp));
     topicOp.finishRequest();
+  }
+
+  void readTopics(final List<O> topicOps) {
+    // TODO Create cache for Kafka Consumer
+    val nodeAddr = topicOps.get(0).nodeAddr();
+    try {
+      concurrencyThrottle.acquire();
+      for (var i = 0; i < topicOps.size(); i++) {
+        val topicOp = (PathOperation) topicOps.get(i);
+        val topicItem = topicOp.item();
+        val topicName =
+            topicItem
+                .name()
+                .substring(topicItem.name().contains("/") ? topicItem.name().indexOf("/") + 1 : 0);
+        try {
+          val consumerConfig = createConsumerConfig(nodeAddr);
+          consumerConfig.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, Integer.MAX_VALUE);
+          topicOp.startRequest();
+          val kafkaConsumer = new KafkaConsumer<String, byte[]>(consumerConfig);
+          kafkaConsumer.subscribe(Arrays.asList(topicName));
+          topicOp.finishRequest();
+          topicOp.startResponse();
+          var sizeOfReadData = 0;
+          var records = kafkaConsumer.poll(recordOpTimeout); // TODO Subscribe to all topics
+          for (var record : records) {
+            sizeOfReadData += record.value().length;
+          }
+          while (!records.isEmpty()) {
+            records = kafkaConsumer.poll(recordOpTimeout);
+            for (var record : records) {
+              sizeOfReadData += record.value().length;
+            }
+          }
+          topicOp.finishResponse();
+          topicOp.countBytesDone(sizeOfReadData);
+          completeOperation((O) topicOp, SUCC);
+        } catch (final RuntimeException e) {
+          completeOperation((O) topicOp, RESP_FAIL_UNKNOWN);
+        }
+        concurrencyThrottle.release();
+      }
+    } catch (final Throwable thrown) {
+      throwUncheckedIfInterrupted(thrown);
+      for (var i = 0; i < topicOps.size(); i++) {
+        val topicOp = topicOps.get(i);
+        completeFailedOperation(topicOp, thrown);
+      }
+      LogUtil.exception(
+          Level.DEBUG,
+          thrown,
+          "{}: unexpected failure while trying to read {} topics",
+          stepId,
+          topicOps.size());
+    }
   }
 
   void deleteTopics(final List<O> topicOps) {}
@@ -510,12 +570,13 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   Properties createConsumerConfig(String nodeAddr) {
     var consumerConfig = new Properties();
-    consumerConfig.setProperty(
-        ConsumerConfig.CLIENT_ID_CONFIG, String.valueOf(System.currentTimeMillis()));
+    /*consumerConfig.setProperty(
+    ConsumerConfig.CLIENT_ID_CONFIG, String.valueOf(System.currentTimeMillis()));*/
     consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
     consumerConfig.put(ConsumerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
     consumerConfig.put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
     consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, "group");
+    consumerConfig.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     try {
       consumerConfig.put(
           ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
