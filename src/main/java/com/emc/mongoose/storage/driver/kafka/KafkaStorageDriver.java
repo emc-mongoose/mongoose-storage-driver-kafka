@@ -516,6 +516,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     consumerConfig.put(ConsumerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
     consumerConfig.put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
     consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, "group");
+    consumerConfig.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     try {
       consumerConfig.put(
           ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
