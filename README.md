@@ -463,6 +463,9 @@ Use command below to build the driver
 
 #### 8.2.2.2. Integration
 
+**Note:**
+> To run integration tests manually you need to run KAFKA
+
 ```bash
 ./gradlew integrationTest
 ```
