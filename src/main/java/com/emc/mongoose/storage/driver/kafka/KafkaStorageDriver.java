@@ -319,7 +319,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       for (var i = 0; i < recOps.size(); i++) {
         val recOp = (DataOperation) recOps.get(i);
         // create the new topic if necessary
-        topicName = recOp.dstPath();
+        topicName = recOp.dstPath().replaceAll("/","");;
         topicCreateFunc =
             topicCreateFuncCache.computeIfAbsent(adminClient, TopicCreateFunctionImpl::new);
         topicCache.computeIfAbsent(topicName, topicCreateFunc);
@@ -378,11 +378,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
             recOp = (DataOperation) recOps.get(i);
             recOp.startRequest();
             recOp.finishRequest();
-            val topicName =
-                recOp
-                    .srcPath()
-                    .substring(
-                        recOp.srcPath().contains("/") ? recOp.srcPath().indexOf("/") + 1 : 0);
+            val topicName = recOp.srcPath().replaceAll("/","");
             topics.add(topicName);
           }
           consumer.subscribe(topics);
@@ -516,6 +512,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     consumerConfig.put(ConsumerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
     consumerConfig.put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
     consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, "group");
+    consumerConfig.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     try {
       consumerConfig.put(
           ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
