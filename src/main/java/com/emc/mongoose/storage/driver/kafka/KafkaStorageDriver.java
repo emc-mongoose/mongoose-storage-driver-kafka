@@ -487,10 +487,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       for (var i = 0; i < topicOps.size(); i++) {
         val topicOp = (PathOperation) topicOps.get(i);
         val topicItem = topicOp.item();
-        val topicName =
-            topicItem
-                .name()
-                .substring(topicItem.name().contains("/") ? topicItem.name().indexOf("/") + 1 : 0);
+        val topicName = topicItem.name().replaceAll("/", "");
         try {
           val consumerConfig = createConsumerConfig(nodeAddr);
           consumerConfig.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, Integer.MAX_VALUE);
@@ -500,7 +497,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
           topicOp.finishRequest();
           topicOp.startResponse();
           var sizeOfReadData = 0;
-          var records = kafkaConsumer.poll(recordOpTimeout); // TODO Subscribe to all topics
+          var records = kafkaConsumer.poll(recordOpTimeout);
           for (var record : records) {
             sizeOfReadData += record.value().length;
           }
@@ -512,6 +509,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
           }
           topicOp.finishResponse();
           topicOp.countBytesDone(sizeOfReadData);
+          kafkaConsumer.close();
           completeOperation((O) topicOp, SUCC);
         } catch (final RuntimeException e) {
           completeOperation((O) topicOp, RESP_FAIL_UNKNOWN);
@@ -570,8 +568,8 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   Properties createConsumerConfig(String nodeAddr) {
     var consumerConfig = new Properties();
-    /*consumerConfig.setProperty(
-    ConsumerConfig.CLIENT_ID_CONFIG, String.valueOf(System.currentTimeMillis()));*/
+    consumerConfig.setProperty(
+        ConsumerConfig.CLIENT_ID_CONFIG, String.valueOf(System.currentTimeMillis()));
     consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
     consumerConfig.put(ConsumerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
     consumerConfig.put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);

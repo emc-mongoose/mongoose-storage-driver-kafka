@@ -259,7 +259,88 @@ This example creates 100 simple topics. Each topic has one partition and replica
 > storage-driver-limit-concurrency must equal to load-batch-size because of concurrencyTrottle.acquire(batchSize).
 
 ### 5.2.2. Read
-Read all records at once.
+Mongoose's implementation of a topic reading reads the whole topic in one operation. This is achieved by
+invocation of the poll method for each topic until it'll return an empty record collection. If collection is empty, mark
+the topic as read.
+
+The read operation marks as failed when an exception occurs. According to Kafka docs the poll() method throws 
+[exceptions](https://kafka.apache.org/22/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html#poll-java.time.Duration-).
+
+* Steps:
+```
+java -jar mongoose-base-4.2.11.jar \
+    --storage-driver-type=kafka \
+    --storage-net-node-addrs=127.0.0.1 \
+    --storage-net-node-port=9092 \
+    --item-data-size=1 \
+    --run-scenario=readTopicsLoad.js \
+```
+
+Using scenario:
+```javascript
+PreconditionLoad
+	.config({
+		"item" : {
+			"type" : "data",
+			"output" : {
+				"path" : "topic1"
+			}
+		},
+		"load" : {
+			"op" : {
+				"limit" : {
+					"count" : 5
+				}
+			}
+		}
+	})
+	.run();
+
+PreconditionLoad
+	.config({
+		"item" : {
+			"type" : "data",
+			"output" : {
+				"path" : "topic2"
+			}
+		},
+		"load" : {
+			"op" : {
+				"limit" : {
+					"count" : 5
+				}
+			}
+		}
+	})
+	.run();
+
+var topic_list_file = "topic_list.csv"
+
+ReadLoad
+	.config({
+		"item" : {
+			"type" : "path",
+			"input" : {
+				"file" : topic_list_file
+			}
+		},
+		"load" : {
+			"op" : {
+				"limit" : {
+					"count" : 2
+				},
+				"recycle" : true
+			}
+		}
+	})
+	.run();
+```
+
+This example creates two topics and writes 5 records to both of them. Then it reads each topic as a Path operation.
+
+**Note:**
+> KafkaConsumer raises no exceptions when the user subscribes and polls to the topic which doesn't exist. 
+> So that operation will mark as SUCCESSFUL. See Transfer Size to deal with it.
 
 ### 5.2.3. Update
 Not supported
