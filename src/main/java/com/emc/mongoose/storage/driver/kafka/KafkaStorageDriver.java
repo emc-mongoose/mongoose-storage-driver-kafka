@@ -8,6 +8,7 @@ import static com.github.akurilov.commons.io.el.ExpressionInput.SYNC_MARKER;
 import static com.github.akurilov.commons.lang.Exceptions.throwUnchecked;
 
 import com.emc.mongoose.base.config.IllegalConfigurationException;
+import com.emc.mongoose.base.config.el.CompositeExpressionInputBuilder;
 import com.emc.mongoose.base.data.DataInput;
 import com.emc.mongoose.base.item.DataItem;
 import com.emc.mongoose.base.item.Item;
@@ -26,6 +27,7 @@ import com.emc.mongoose.storage.driver.kafka.cache.TopicCreateFunction;
 import com.emc.mongoose.storage.driver.kafka.cache.TopicCreateFunctionImpl;
 import com.emc.mongoose.storage.driver.preempt.PreemptStorageDriverBase;
 import com.github.akurilov.commons.concurrent.ContextAwareThreadFactory;
+import com.github.akurilov.commons.io.Input;
 import com.github.akurilov.confuse.Config;
 import java.io.EOFException;
 import java.io.IOException;
@@ -35,6 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import lombok.val;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
@@ -47,6 +50,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.errors.TopicExistsException;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.ThreadContext;
 
@@ -78,6 +82,10 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private final Map<String, NewTopic> topicCache = new ConcurrentHashMap<>();
   protected final Map<String, String> sharedHeaders = new HashMap<>();
   protected final Map<String, String> dynamicHeaders = new HashMap<>();
+  private static final Function<String, Input<String>> EXPR_INPUT_FUNC =
+      expr -> CompositeExpressionInputBuilder.newInstance().expression(expr).build();
+  private final Map<String, Input<String>> headerNameInputs = new ConcurrentHashMap<>();
+  private final Map<String, Input<String>> headerValueInputs = new ConcurrentHashMap<>();
   private volatile boolean listWasCalled = false;
 
   public KafkaStorageDriver(
@@ -185,6 +193,57 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   @Override
   protected final boolean isBatch(final List<O> ops, final int from, final int to) {
     return true;
+  }
+
+  protected void applyDynamicHeaders(final ArrayList headers) {
+    String headerName;
+    String headerValue;
+    Input<String> headerNameInput;
+    Input<String> headerValueInput;
+    for (final var nextHeader : dynamicHeaders.entrySet()) {
+      headerName = nextHeader.getKey();
+
+      headerNameInput = headerNameInputs.computeIfAbsent(headerName, EXPR_INPUT_FUNC);
+      if (headerNameInput == null) {
+        continue;
+      }
+
+      headerName = headerNameInput.get();
+      headerValue = nextHeader.getValue();
+
+      headerValueInput = headerValueInputs.computeIfAbsent(headerValue, EXPR_INPUT_FUNC);
+      if (headerValueInput == null) {
+        continue;
+      }
+
+      headerValue = headerValueInput.get();
+
+      headers.add(new RecordHeader(headerName, headerValue.getBytes()));
+    }
+  }
+
+  protected void applySharedHeaders(final ArrayList headers) {
+    for (final var sharedHeader : sharedHeaders.entrySet()) {
+      headers.add(new RecordHeader(sharedHeader.getKey(), sharedHeader.getValue().getBytes()));
+    }
+  }
+
+  public <K, V> ProducerRecord readOutput(
+      final String topicName,
+      final String producerKey,
+      final DataItem recordItem,
+      final ArrayList headers) {
+    final val record = readOutput(topicName, producerKey, recordItem, headers);
+    if (record == null) {
+      return null;
+    }
+    return new ProducerRecord<>(
+        record.topic(),
+        record.partition(),
+        record.timestamp(),
+        record.key(),
+        record.value(),
+        headers);
   }
 
   @Override
@@ -319,14 +378,18 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       for (var i = 0; i < recOps.size(); i++) {
         val recOp = (DataOperation) recOps.get(i);
         // create the new topic if necessary
-        topicName = recOp.dstPath().replaceAll("/","");;
+        topicName = recOp.dstPath().replaceAll("/", "");
+        ;
         topicCreateFunc =
             topicCreateFuncCache.computeIfAbsent(adminClient, TopicCreateFunctionImpl::new);
         topicCache.computeIfAbsent(topicName, topicCreateFunc);
         // create the corresponding producer key and send it
         val recItem = recOp.item();
         val producerKey = useKey ? recItem.name() : null;
-        val producerRecord = new ProducerRecord<String, DataItem>(topicName, producerKey, recItem);
+        val headers = new ArrayList<>();
+        applyDynamicHeaders(headers);
+        applySharedHeaders(headers);
+        val producerRecord = readOutput(topicName, producerKey, recItem, headers);
         val recSize = recItem.size();
         concurrencyThrottle.acquire();
         recOp.startRequest();
@@ -378,7 +441,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
             recOp = (DataOperation) recOps.get(i);
             recOp.startRequest();
             recOp.finishRequest();
-            val topicName = recOp.srcPath().replaceAll("/","");
+            val topicName = recOp.srcPath().replaceAll("/", "");
             topics.add(topicName);
           }
           consumer.subscribe(topics);
