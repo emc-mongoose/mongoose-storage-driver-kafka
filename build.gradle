@@ -23,13 +23,13 @@ repositories {
 }
 description = "Mongoose is a high-load storage performance testing tool"
 group = "com.github.emc-mongoose"
-version = "4.2.6"
+version = "4.2.8"
 sourceCompatibility = 11
 targetCompatibility = 11
 
 ext {
 	depVersion = [
-		commonsJava              : "2.3.5",
+		commonsJava              : "2.3.6",
 		confuse                  : "1.2.1",
 		confuseIoYaml            : "1.0.0",
 		disruptor                : "3.4.2",
@@ -37,8 +37,9 @@ ext {
 		javaxActivation			 : "1.1",
 		kafka					 : "2.2.0", 
 		log4j                    : "2.8.2",
-		mongooseBase             : "4.2.6",
-		mongooseStorageDriverCoop: "4.2.6",
+		mongooseBase             : "4.2.11",
+		mongooseLoadStepPipeline : "4.2.9",
+		mongooseStorageDriverPreempt: "4.2.14",
 		scala                    : "2.12.6",
 	]
 	rootPkg = "com.emc.mongoose.storage.driver.kafka"
@@ -71,7 +72,7 @@ dependencies {
 	compileOnly(
 		"org.projectlombok:lombok:1.18.6",
 		"com.github.emc-mongoose:mongoose-base:${depVersion.mongooseBase}",
-		"com.github.emc-mongoose:mongoose-storage-driver-coop:${depVersion.mongooseStorageDriverCoop}",
+		"com.github.emc-mongoose:mongoose-storage-driver-preempt:${depVersion.mongooseStorageDriverPreempt}",
 		"com.github.akurilov:confuse:${depVersion.confuse}",
 		"com.github.akurilov:confuse-io-yaml:${depVersion.confuseIoYaml}",
 		"com.github.akurilov:java-commons:${depVersion.commonsJava}",
@@ -273,7 +274,8 @@ task dockerBuildImage(type: DockerBuildImage) {
 	inputDir = project.projectDir
 	buildArgs = [
 		"BASE_VERSION"       : depVersion.mongooseBase,
-		"STORAGE_DRIVER_COOP_VERSION": depVersion.mongooseStorageDriverCoop,
+		"LOAD_STEP_PIPELINE_VERSION": depVersion.mongooseLoadStepPipeline,
+		"STORAGE_DRIVER_PREEMPT_VERSION": depVersion.mongooseStorageDriverPreempt,
 		"VERSION"            : version,
 	]
 	dockerFile = project.file("ci${File.separator}docker${File.separator}Dockerfile")
