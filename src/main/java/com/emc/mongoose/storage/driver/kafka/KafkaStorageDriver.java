@@ -1,10 +1,15 @@
 package com.emc.mongoose.storage.driver.kafka;
 
 import static com.emc.mongoose.base.item.op.Operation.Status.*;
+import static com.github.akurilov.commons.io.el.ExpressionInput.ASYNC_MARKER;
+import static com.github.akurilov.commons.io.el.ExpressionInput.INIT_MARKER;
+import static com.github.akurilov.commons.io.el.ExpressionInput.SYNC_MARKER;
 import static com.github.akurilov.commons.lang.Exceptions.throwUnchecked;
 
 import com.emc.mongoose.base.config.IllegalConfigurationException;
+import com.emc.mongoose.base.config.el.CompositeExpressionInputBuilder;
 import com.emc.mongoose.base.data.DataInput;
+import com.emc.mongoose.base.item.DataItem;
 import com.emc.mongoose.base.item.Item;
 import com.emc.mongoose.base.item.ItemFactory;
 import com.emc.mongoose.base.item.op.OpType;
@@ -18,13 +23,17 @@ import com.emc.mongoose.storage.driver.kafka.cache.AdminClientCreateFunctionImpl
 import com.emc.mongoose.storage.driver.kafka.cache.ConsumerCreateFunctionImpl;
 import com.emc.mongoose.storage.driver.kafka.cache.ProducerCreateFunctionImpl;
 import com.emc.mongoose.storage.driver.kafka.cache.TopicCreateFunctionImpl;
+import com.github.akurilov.commons.io.Input;
 import com.github.akurilov.confuse.Config;
 import java.io.EOFException;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import lombok.val;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -32,12 +41,8 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.*;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.logging.log4j.Level;
-import java.util.Map;
-import java.util.HashMap;
-import static com.github.akurilov.commons.io.el.ExpressionInput.ASYNC_MARKER;
-import static com.github.akurilov.commons.io.el.ExpressionInput.INIT_MARKER;
-import static com.github.akurilov.commons.io.el.ExpressionInput.SYNC_MARKER;
 
 public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     extends CoopStorageDriverBase<I, O> {
@@ -64,7 +69,11 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private final Map<AdminClient, TopicCreateFunctionImpl> topicCreateFuncCache =
       new ConcurrentHashMap<>();
   private final Map<String, NewTopic> topicCache = new ConcurrentHashMap<>();
-  protected final Map<String, String>  sharedHeaders = new HashMap<>();
+  private static final Function<String, Input<String>> EXPR_INPUT_FUNC =
+      expr -> CompositeExpressionInputBuilder.newInstance().expression(expr).build();
+  private final Map<String, Input<String>> headerNameInputs = new ConcurrentHashMap<>();
+  private final Map<String, Input<String>> headerValueInputs = new ConcurrentHashMap<>();
+  protected final Map<String, String> sharedHeaders = new HashMap<>();
   protected final Map<String, String> dynamicHeaders = new HashMap<>();
   private volatile boolean listWasCalled = false;
 
@@ -83,16 +92,16 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     super(testStepId, dataInput, storageConfig, verifyFlag, batchSize);
     var driverConfig = storageConfig.configVal("driver");
     final var headersMap = driverConfig.<String>mapVal("headers");
-    if(!headersMap.isEmpty()) {
+    if (!headersMap.isEmpty()) {
       for (final var header : headersMap.entrySet()) {
         final var headerKey = header.getKey();
         final var headerValue = header.getValue();
         if (headerKey.contains(ASYNC_MARKER)
-                || headerKey.contains(SYNC_MARKER)
-                || headerKey.contains(INIT_MARKER)
-                || headerValue.contains(ASYNC_MARKER)
-                || headerValue.contains(SYNC_MARKER)
-                || headerValue.contains(INIT_MARKER)) {
+            || headerKey.contains(SYNC_MARKER)
+            || headerKey.contains(INIT_MARKER)
+            || headerValue.contains(ASYNC_MARKER)
+            || headerValue.contains(SYNC_MARKER)
+            || headerValue.contains(INIT_MARKER)) {
           dynamicHeaders.put(headerKey, headerValue);
         } else {
           sharedHeaders.put(headerKey, headerValue);
@@ -219,6 +228,57 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     return producerConfig;
   }
 
+  public <K, V> ProducerRecord readOutput(
+      final String topicName,
+      final String producerKey,
+      final DataItem recordItem,
+      final ArrayList headers) {
+    final val record = readOutput(topicName, producerKey, recordItem, headers);
+    if (record == null) {
+      return null;
+    }
+    return new ProducerRecord<>(
+        record.topic(),
+        record.partition(),
+        record.timestamp(),
+        record.key(),
+        record.value(),
+        headers);
+  }
+
+  protected void applyDynamicHeaders(final ArrayList headers) {
+    String headerName;
+    String headerValue;
+    Input<String> headerNameInput;
+    Input<String> headerValueInput;
+    for (final var nextHeader : dynamicHeaders.entrySet()) {
+      headerName = nextHeader.getKey();
+
+      headerNameInput = headerNameInputs.computeIfAbsent(headerName, EXPR_INPUT_FUNC);
+      if (headerNameInput == null) {
+        continue;
+      }
+
+      headerName = headerNameInput.get();
+      headerValue = nextHeader.getValue();
+
+      headerValueInput = headerValueInputs.computeIfAbsent(headerValue, EXPR_INPUT_FUNC);
+      if (headerValueInput == null) {
+        continue;
+      }
+
+      headerValue = headerValueInput.get();
+
+      headers.add(new RecordHeader(headerName, headerValue.getBytes()));
+    }
+  }
+
+  protected void applySharedHeaders(final ArrayList headers) {
+    for (final var sharedHeader : sharedHeaders.entrySet()) {
+      headers.add(new RecordHeader(sharedHeader.getKey(), sharedHeader.getValue().getBytes()));
+    }
+  }
+
   private void submitRecordCreateOperation(final DataOperation recordOp, String nodeAddr) {
     try {
       val config = configCache.computeIfAbsent(nodeAddr, this::createConfig);
@@ -233,10 +293,14 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       val topicCreateFunc =
           topicCreateFuncCache.computeIfAbsent(adminClient, TopicCreateFunctionImpl::new);
       val topic = topicCache.computeIfAbsent(topicName, topicCreateFunc);
+      val headers = new ArrayList<>();
+      applyDynamicHeaders(headers);
+      applySharedHeaders(headers);
       if (key) {
         val producerKey = recordItem.name();
+        val record = readOutput(topicName, producerKey, recordItem, headers);
         kafkaProducer.send(
-            new ProducerRecord<>(topicName, producerKey, recordItem),
+            record,
             (metadata, exception) -> {
               if (exception == null) {
                 try {
@@ -251,7 +315,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
             });
       } else {
         kafkaProducer.send(
-            new ProducerRecord<>(topicName, recordItem),
+            new ProducerRecord<>(topicName, recordItem, headers),
             (metadata, exception) -> {
               if (exception == null) {
                 try {
