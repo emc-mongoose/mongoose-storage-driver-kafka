@@ -50,8 +50,6 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.errors.TopicExistsException;
-import org.apache.kafka.common.header.Headers;
-import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.ThreadContext;
 
@@ -196,8 +194,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     return true;
   }
 
-  protected void applyDynamicHeaders(
-      /*final Headers headers,*/ final ProducerRecord<String, DataItem> record) {
+  protected void applyDynamicHeaders(final ProducerRecord<String, DataItem> record) {
     String headerName;
     String headerValue;
     Input<String> headerNameInput;
@@ -222,35 +219,14 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
       if (!(headerName.isEmpty() && headerValue.isEmpty()))
         record.headers().add(headerName, headerValue.getBytes());
-      // headers.add(headerName,headerValue.getBytes());
     }
   }
 
-  protected void applySharedHeaders(
-      /*final Headers headers,*/ final ProducerRecord<String, DataItem> record) {
+  protected void applySharedHeaders(final ProducerRecord<String, DataItem> record) {
     for (final var sharedHeader : sharedHeaders.entrySet()) {
       if (!(sharedHeader.getKey().isEmpty() && sharedHeader.getValue().isEmpty()))
         record.headers().add(sharedHeader.getKey(), sharedHeader.getValue().getBytes());
-      // headers.add(sharedHeader.getKey(), sharedHeader.getValue().getBytes());
     }
-  }
-
-  public <K, V> ProducerRecord readOutput(
-      final String topicName,
-      final String producerKey,
-      final DataItem recordItem,
-      final Headers headers) {
-    final val record = readOutput(topicName, producerKey, recordItem, headers);
-    if (record == null) {
-      return null;
-    }
-    return new ProducerRecord<>(
-        record.topic(),
-        record.partition(),
-        record.timestamp(),
-        record.key(),
-        record.value(),
-        headers);
   }
 
   @Override
@@ -392,13 +368,9 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         // create the corresponding producer key and send it
         val recItem = recOp.item();
         val producerKey = useKey ? recItem.name() : null;
-        Headers headers = new RecordHeaders();
-        // applyDynamicHeaders(headers);
-        // applySharedHeaders(headers);
         val producerRecord = new ProducerRecord<String, DataItem>(topicName, producerKey, recItem);
         applyDynamicHeaders(producerRecord);
         applySharedHeaders(producerRecord);
-        // producerRecord.headers().add(headers.lastHeader(producerKey));
         val recSize = recItem.size();
         concurrencyThrottle.acquire();
         recOp.startRequest();
