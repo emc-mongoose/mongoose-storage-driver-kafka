@@ -25,7 +25,7 @@ public class ReadRecordTest {
   private static Properties consProps = new Properties();
   private static Properties admProps = new Properties();
 
-  private static final String TOPIC_NAME = "topic" + ReadRecordTest.class.getSimpleName();// + System.currentTimeMillis();
+  private static final String TOPIC_NAME = "topic" + ReadRecordTest.class.getSimpleName() + System.currentTimeMillis();
   private static final String KEY_NAME = "key" + ReadRecordTest.class.getSimpleName();
   private static final String DATA = "test-record";
   private static final Duration TIMEOUT = Duration.ofMillis(1000*5);
@@ -50,6 +50,7 @@ public class ReadRecordTest {
     consProps.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "30000");
     consProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
     consProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+    consProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     consumer = new KafkaConsumer<>(consProps);
   }
 
@@ -64,10 +65,8 @@ public class ReadRecordTest {
   }
 
   @Test
-  @Ignore
   public void readRecordTest() throws Exception {
     consumer.subscribe(singletonList(TOPIC_NAME));
-    //consumer.poll(TIMEOUT).records(TOPIC_NAME);
     val producerRecord = new ProducerRecord<>(TOPIC_NAME, KEY_NAME, DATA);
     val offset = new AtomicLong(-1);
     producer
