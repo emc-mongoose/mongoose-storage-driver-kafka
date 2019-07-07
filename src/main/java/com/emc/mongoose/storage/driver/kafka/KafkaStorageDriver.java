@@ -196,7 +196,8 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     return true;
   }
 
-  protected void applyDynamicHeaders(final Headers headers) {
+  protected void applyDynamicHeaders(
+      /*final Headers headers,*/ final ProducerRecord<String, DataItem> record) {
     String headerName;
     String headerValue;
     Input<String> headerNameInput;
@@ -219,13 +220,18 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
       headerValue = headerValueInput.get();
 
-      headers.add(headerName, headerValue.getBytes());
+      if (!(headerName.isEmpty() && headerValue.isEmpty()))
+        record.headers().add(headerName, headerValue.getBytes());
+      // headers.add(headerName,headerValue.getBytes());
     }
   }
 
-  protected void applySharedHeaders(final Headers headers) {
+  protected void applySharedHeaders(
+      /*final Headers headers,*/ final ProducerRecord<String, DataItem> record) {
     for (final var sharedHeader : sharedHeaders.entrySet()) {
-      headers.add(sharedHeader.getKey(), sharedHeader.getValue().getBytes());
+      if (!(sharedHeader.getKey().isEmpty() && sharedHeader.getValue().isEmpty()))
+        record.headers().add(sharedHeader.getKey(), sharedHeader.getValue().getBytes());
+      // headers.add(sharedHeader.getKey(), sharedHeader.getValue().getBytes());
     }
   }
 
@@ -387,9 +393,12 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         val recItem = recOp.item();
         val producerKey = useKey ? recItem.name() : null;
         Headers headers = new RecordHeaders();
-        applyDynamicHeaders(headers);
-        applySharedHeaders(headers);
-        val producerRecord = readOutput(topicName, producerKey, recItem, headers);
+        // applyDynamicHeaders(headers);
+        // applySharedHeaders(headers);
+        val producerRecord = new ProducerRecord<String, DataItem>(topicName, producerKey, recItem);
+        applyDynamicHeaders(producerRecord);
+        applySharedHeaders(producerRecord);
+        // producerRecord.headers().add(headers.lastHeader(producerKey));
         val recSize = recItem.size();
         concurrencyThrottle.acquire();
         recOp.startRequest();
