@@ -50,7 +50,8 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.errors.TopicExistsException;
-import org.apache.kafka.common.header.internals.RecordHeader;
+import org.apache.kafka.common.header.Headers;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.ThreadContext;
 
@@ -195,7 +196,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     return true;
   }
 
-  protected void applyDynamicHeaders(final ArrayList headers) {
+  protected void applyDynamicHeaders(final Headers headers) {
     String headerName;
     String headerValue;
     Input<String> headerNameInput;
@@ -218,13 +219,13 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
       headerValue = headerValueInput.get();
 
-      headers.add(new RecordHeader(headerName, headerValue.getBytes()));
+      headers.add(headerName, headerValue.getBytes());
     }
   }
 
-  protected void applySharedHeaders(final ArrayList headers) {
+  protected void applySharedHeaders(final Headers headers) {
     for (final var sharedHeader : sharedHeaders.entrySet()) {
-      headers.add(new RecordHeader(sharedHeader.getKey(), sharedHeader.getValue().getBytes()));
+      headers.add(sharedHeader.getKey(), sharedHeader.getValue().getBytes());
     }
   }
 
@@ -232,7 +233,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       final String topicName,
       final String producerKey,
       final DataItem recordItem,
-      final ArrayList headers) {
+      final Headers headers) {
     final val record = readOutput(topicName, producerKey, recordItem, headers);
     if (record == null) {
       return null;
@@ -379,14 +380,13 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         val recOp = (DataOperation) recOps.get(i);
         // create the new topic if necessary
         topicName = recOp.dstPath().replaceAll("/", "");
-        ;
         topicCreateFunc =
             topicCreateFuncCache.computeIfAbsent(adminClient, TopicCreateFunctionImpl::new);
         topicCache.computeIfAbsent(topicName, topicCreateFunc);
         // create the corresponding producer key and send it
         val recItem = recOp.item();
         val producerKey = useKey ? recItem.name() : null;
-        val headers = new ArrayList<>();
+        Headers headers = new RecordHeaders();
         applyDynamicHeaders(headers);
         applySharedHeaders(headers);
         val producerRecord = readOutput(topicName, producerKey, recItem, headers);
