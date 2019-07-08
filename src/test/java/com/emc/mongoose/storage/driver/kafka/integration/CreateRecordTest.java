@@ -12,19 +12,18 @@ import org.junit.*;
 public class CreateRecordTest {
 
   private KafkaProducer<String, byte[]> kafkaProducer;
-  private static final String TOPIC_NAME = "topic";
-  private static final String KEY_NAME = "key";
+  private static final String TOPIC_NAME =
+      "topic" + CreateRecordTest.class.getSimpleName() + System.currentTimeMillis();
+  private static final String KEY_NAME = "key" + CreateRecordTest.class.getSimpleName();
+  private static final String IP = "localhost:9092";
   private static AdminClient adminClient;
-  private static long timestamp;
 
   @Before
   public void setup() {
-    timestamp = System.currentTimeMillis();
-    String host_port = "127.0.0.1:9092";
     Properties properties = new Properties();
-    properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, host_port);
+    properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, IP);
     Properties producer_properties = new Properties();
-    producer_properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, host_port);
+    producer_properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, IP);
     kafkaProducer =
         new KafkaProducer<>(producer_properties, new StringSerializer(), new ByteArraySerializer());
     adminClient = KafkaAdminClient.create(properties);
@@ -32,11 +31,10 @@ public class CreateRecordTest {
 
   @Test
   public void testCreateRecord() throws Exception {
-    String topicName = TOPIC_NAME + timestamp;
-    adminClient.createTopics(Collections.singletonList(new NewTopic(topicName, 1, (short) 1)));
+    adminClient.createTopics(Collections.singletonList(new NewTopic(TOPIC_NAME, 1, (short) 1)));
     final byte[] data = new byte[900000];
     final ProducerRecord<String, byte[]> producerRecord =
-        new ProducerRecord<>(topicName, KEY_NAME, data);
+        new ProducerRecord<>(TOPIC_NAME, KEY_NAME, data);
     Future<RecordMetadata> future =
         kafkaProducer.send(
             producerRecord,
@@ -48,7 +46,7 @@ public class CreateRecordTest {
     System.out.println("Record was sent");
     Assert.assertEquals("Offset must be 0", 0, recordMetadata.offset());
     Assert.assertEquals(
-        "Name of the topic must be " + topicName, topicName, recordMetadata.topic());
+        "Name of the topic must be " + TOPIC_NAME, TOPIC_NAME, recordMetadata.topic());
     Assert.assertEquals(
         "Value size must be " + data.length, recordMetadata.serializedValueSize(), 900000);
   }

@@ -37,6 +37,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.val;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -44,6 +45,8 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.KafkaFuture;
+import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.ThreadContext;
 
@@ -316,7 +319,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       for (var i = 0; i < recOps.size(); i++) {
         val recOp = (DataOperation) recOps.get(i);
         // create the new topic if necessary
-        topicName = recOp.dstPath();
+        topicName = recOp.dstPath().replaceAll("/","");;
         topicCreateFunc =
             topicCreateFuncCache.computeIfAbsent(adminClient, TopicCreateFunctionImpl::new);
         topicCache.computeIfAbsent(topicName, topicCreateFunc);
@@ -365,17 +368,18 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       val consumerConfig = createConsumerConfig(nodeAddr);
       // set the records count limit equal to the remaining read operations count
       consumerConfig.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, remainingOpCount);
+      var recOp = (DataOperation) null;
       try (val consumer = new KafkaConsumer(consumerConfig)) {
         try {
           concurrencyThrottle.acquire();
-          var recOp = (DataOperation) null;
           val topics = new HashSet<>();
           // mark the request time for all remaining operations
           for (var i = opCount - remainingOpCount; i < opCount; i++) {
             recOp = (DataOperation) recOps.get(i);
             recOp.startRequest();
             recOp.finishRequest();
-            topics.add(recOp.dstPath());
+            val topicName = recOp.srcPath().replaceAll("/","");
+            topics.add(topicName);
           }
           consumer.subscribe(topics);
           val pollResult = consumer.poll(recordOpTimeout);
@@ -395,12 +399,75 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
           concurrencyThrottle.release();
         }
       } catch (final Throwable e) {
+        completeFailedOperation((O) recOp, e);
         throwUncheckedIfInterrupted(e);
       }
     }
   }
 
-  void createTopics(final List<O> topicOps) {}
+  void createTopics(final List<O> topicOps) {
+    val nodeAddr = topicOps.get(0).nodeAddr();
+    try {
+      val config = configCache.computeIfAbsent(nodeAddr, this::createAdminClientConfig);
+      val adminClientCreateFunc =
+          adminClientCreateFuncCache.computeIfAbsent(config, AdminClientCreateFunctionImpl::new);
+      val adminClient = adminClientCache.computeIfAbsent(nodeAddr, adminClientCreateFunc);
+      val topicCollection = new ArrayList<NewTopic>();
+      for (var i = 0; i < topicOps.size(); i++) {
+        val topicOp = topicOps.get(i);
+        val topicName = topicOp.item().name();
+        val newTopic = new NewTopic(topicName, 1, (short) 1);
+        topicCollection.add(newTopic);
+      }
+      concurrencyThrottle.acquire(topicOps.size());
+      val createTopicsResultMap = adminClient.createTopics(topicCollection).values();
+      for (var i = 0; i < topicOps.size(); i++) {
+        hanldeTopicCreateOperation(topicOps.get(i), createTopicsResultMap);
+      }
+    } catch (final Throwable thrown) {
+      throwUncheckedIfInterrupted(thrown);
+      for (var i = 0; i < topicOps.size(); i++) {
+        val topicOp = topicOps.get(i);
+        completeFailedOperation(topicOp, thrown);
+      }
+      LogUtil.exception(
+          Level.DEBUG,
+          thrown,
+          "{}: unexpected failure while trying to create {} records",
+          stepId,
+          topicOps.size());
+    }
+  }
+
+  KafkaFuture.BiConsumer<Void, Throwable> handleTopicCreateFuture(final PathOperation topicOp) {
+    val topicName = topicOp.item().name();
+    KafkaFuture.BiConsumer<Void, Throwable> action =
+        (aVoid, throwable) -> {
+          if (throwable == null) {
+            topicOp.startResponse();
+            topicOp.finishResponse();
+            completeOperation((O) topicOp, SUCC);
+          } else {
+            LogUtil.exception(
+                Level.DEBUG, throwable, "{}: Failed to create topic \"{}\"", stepId, topicName);
+            if (throwable instanceof TopicExistsException) {
+              LogUtil.exception(
+                  Level.DEBUG, throwable, "{}: Topic \"{}\" already exists", stepId, topicName);
+            }
+            completeOperation((O) topicOp, RESP_FAIL_UNKNOWN);
+          }
+          concurrencyThrottle.release();
+        };
+    return action;
+  }
+
+  void hanldeTopicCreateOperation(final O topicOp, final Map<String, KafkaFuture<Void>> resultMap) {
+    val topicName = topicOp.item().name();
+    topicOp.startRequest();
+    val oneTopicResult = resultMap.get(topicName);
+    oneTopicResult.whenComplete(handleTopicCreateFuture((PathOperation) topicOp));
+    topicOp.finishRequest();
+  }
 
   void deleteTopics(final List<O> topicOps) {}
 
@@ -439,9 +506,13 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
 
   Properties createConsumerConfig(String nodeAddr) {
     var consumerConfig = new Properties();
+    consumerConfig.setProperty(
+        ConsumerConfig.CLIENT_ID_CONFIG, String.valueOf(System.currentTimeMillis()));
     consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
     consumerConfig.put(ConsumerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
     consumerConfig.put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
+    consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, "group");
+    consumerConfig.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     try {
       consumerConfig.put(
           ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
@@ -453,6 +524,12 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       LogUtil.exception(Level.DEBUG, e, "{}: operation failed", stepId);
     }
     return consumerConfig;
+  }
+
+  Properties createAdminClientConfig(final String nodeAddr) {
+    val adminClientConfig = new Properties();
+    adminClientConfig.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
+    return adminClientConfig;
   }
 
   String nextEndpointAddr() {
