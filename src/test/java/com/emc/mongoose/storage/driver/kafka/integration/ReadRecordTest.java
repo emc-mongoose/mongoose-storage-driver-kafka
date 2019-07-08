@@ -30,7 +30,6 @@ public class ReadRecordTest {
   private static final String DATA = "test-record";
   private static final String IP = "localhost:9092";
   private static final Duration TIMEOUT = Duration.ofMillis(1000*5);
-  private static final Duration TIMEOUT_ZERO = Duration.ZERO;
 
   @Before
   public void init() {
@@ -53,13 +52,13 @@ public class ReadRecordTest {
     consProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
     consProps.put(
         ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+    consProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     consumer = new KafkaConsumer<>(consProps);
   }
 
   @Test
   public void readRecordTest() throws Exception {
     consumer.subscribe(singletonList(TOPIC_NAME));
-    consumer.poll(TIMEOUT).records(TOPIC_NAME);
     val producerRecord = new ProducerRecord<>(TOPIC_NAME, KEY_NAME, DATA);
     val offset = new AtomicLong(-1);
     producer.send(
@@ -70,7 +69,7 @@ public class ReadRecordTest {
         });
     producer.flush();
     assertTrue(offset.get() >= 0);
-    val recordsRead = consumer.poll(TIMEOUT_ZERO).records(TOPIC_NAME);
+    val recordsRead = consumer.poll(TIMEOUT).records(TOPIC_NAME);
     var found = false;
     for (val rec : recordsRead) {
       if (rec.offset() == offset.get()) {
