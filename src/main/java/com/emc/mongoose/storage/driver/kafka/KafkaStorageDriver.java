@@ -319,7 +319,8 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       for (var i = 0; i < recOps.size(); i++) {
         val recOp = (DataOperation) recOps.get(i);
         // create the new topic if necessary
-        topicName = recOp.dstPath().replaceAll("/","");;
+        topicName = recOp.dstPath().replaceAll("/", "");
+        ;
         topicCreateFunc =
             topicCreateFuncCache.computeIfAbsent(adminClient, TopicCreateFunctionImpl::new);
         topicCache.computeIfAbsent(topicName, topicCreateFunc);
@@ -378,7 +379,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
             recOp = (DataOperation) recOps.get(i);
             recOp.startRequest();
             recOp.finishRequest();
-            val topicName = recOp.srcPath().replaceAll("/","");
+            val topicName = recOp.srcPath().replaceAll("/", "");
             topics.add(topicName);
           }
           consumer.subscribe(topics);
@@ -469,7 +470,62 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     topicOp.finishRequest();
   }
 
-  void deleteTopics(final List<O> topicOps) {}
+  void deleteTopics(final List<O> topicOps) {
+    val nodeAddr = topicOps.get(0).nodeAddr();
+    try {
+      val config = configCache.computeIfAbsent(nodeAddr, this::createAdminClientConfig);
+      val adminClientCreateFunc =
+          adminClientCreateFuncCache.computeIfAbsent(config, AdminClientCreateFunctionImpl::new);
+      val adminClient = adminClientCache.computeIfAbsent(nodeAddr, adminClientCreateFunc);
+      val topicNames = new ArrayList<String>();
+      for (val topicOp : topicOps) {
+        val topicName = topicOp.item().name();
+        topicNames.add(topicName);
+      }
+      concurrencyThrottle.acquire(topicOps.size());
+      val deleteTopicsResultMap = adminClient.deleteTopics(topicNames).values();
+      for (val topicOp : topicOps) {
+        hanldeTopicDeleteOperation(topicOp, deleteTopicsResultMap);
+      }
+    } catch (final Throwable thrown) {
+      throwUncheckedIfInterrupted(thrown);
+      for (val topicOp : topicOps) {
+        completeFailedOperation(topicOp, thrown);
+      }
+      LogUtil.exception(
+          Level.DEBUG,
+          thrown,
+          "{}: unexpected failure while trying to delete {} topics",
+          stepId,
+          topicOps.size());
+    }
+  }
+
+  KafkaFuture.BiConsumer<Void, Throwable> handleTopicDeleteFuture(final PathOperation topicOp) {
+    val topicName = topicOp.item().name();
+    KafkaFuture.BiConsumer<Void, Throwable> action =
+        (aVoid, throwable) -> {
+          if (throwable == null) {
+            topicOp.startResponse();
+            topicOp.finishResponse();
+            completeOperation((O) topicOp, SUCC);
+          } else {
+            LogUtil.exception(
+                Level.DEBUG, throwable, "{}: Failed to delete topic \"{}\"", stepId, topicName);
+            completeOperation((O) topicOp, RESP_FAIL_UNKNOWN);
+          }
+          concurrencyThrottle.release();
+        };
+    return action;
+  }
+
+  void hanldeTopicDeleteOperation(final O topicOp, final Map<String, KafkaFuture<Void>> resultMap) {
+    val topicName = topicOp.item().name();
+    topicOp.startRequest();
+    val oneTopicResult = resultMap.get(topicName);
+    oneTopicResult.whenComplete(handleTopicDeleteFuture((PathOperation) topicOp));
+    topicOp.finishRequest();
+  }
 
   void completeOperation(final O op, final Status status) {
     op.status(status);
