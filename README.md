@@ -241,6 +241,8 @@ Once the raw operations trace data is obtained, it may be used to produce the en
 Scenario example e2e_latency.js:
 
 ```javascript
+var topic = "topicTest"
+
 var sharedConfig = {
 	"storage": {
 		"driver": {
@@ -254,13 +256,13 @@ var sharedConfig = {
 			}
 		}
 	}
-}
+};
 
 var createConfig = {
     "item" : {
         "type" : "data",
         "output" : {
-            "path" : "topicTest"
+            "path" : topic
         }
     },
     "load" : {
@@ -276,7 +278,7 @@ var readConfig = {
     "item" : {
         "type" : "data",
         "input" : {
-            "path" : "topicTest"
+            "path" : topic
         }
     },
     "load" : {
@@ -302,6 +304,7 @@ PipelineLoad
 	.append(createConfig)
 	.append(readConfig)
 	.run()
+
 ```
 
 Command line example:
@@ -309,11 +312,11 @@ Command line example:
 ```bash
 java -jar mongoose-base-<BASE_VERSION>.jar \
     --storage-driver-type=kafka \
-    --storage-namespace=scope1 \   
-    --storage-net-node-port=<NODE_IP_ADDRS> \       
-    --run-scenario=e2e_latency.js \   
-    --item-data-size=10KB \   
-    --load-step-id=e2e_latency_test   
+    --storage-namespace=scope1 \
+    --storage-net-node-port=<NODE_IP_ADDRS> \
+    --run-scenario=e2e_latency.js \
+    --item-data-size=10KB \
+    --load-step-id=e2e_latency_test
 ```
 
 Results:
@@ -354,11 +357,8 @@ Heatmap Output:
 
 ![Heatmap](heatmap.png)
 
-Y axis is logarithmic between the detected latency value min and max. By default it's height is 100 px and corresponding 100 rows.
-X axis is linear. By default it's width is the count of pixels equal max timestamp minus min.
-
-
-
+Y axis is logarithmic between the detected latency value min and max. 
+X axis is linear time in ms. 
 
 ## 5.2. Topic Operations
 
