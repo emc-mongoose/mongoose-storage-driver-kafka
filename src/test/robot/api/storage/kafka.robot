@@ -6,13 +6,15 @@ Test Setup  Start Containers
 Test Teardown  Stop Containers
 
 *** Variables ***
+${DATA_DIR} =  src/test/robot/api/storage/data
 ${MONGOOSE_IMAGE_NAME} =  emcmongoose/mongoose-storage-driver-kafka
 ${MONGOOSE_CONTAINER_NAME} =  mongoose-storage-driver-kafka
-
+${MONGOOSE_CONTAINER_DATA_DIR} =  /data
 ${LOG_DIR} =  build/log
 
 *** Test Cases ***
 Create_Record_Test
+    [Tags]  create_record
     ${node_addr} =  Get Environment Variable  SERVICE_HOST  127.0.0.1
     ${step_id} =  Set Variable  create_record_test
     Remove Directory  ${LOG_DIR}/${step_id}  recursive=True
@@ -25,6 +27,19 @@ Create_Record_Test
     ${std_out} =  Execute Mongoose Scenario  ${args}
     Log  ${std_out}
     Validate Metrics Total Log File  ${step_id}  CREATE  ${count_limit}  0  10000
+
+Read_Records_Test
+    [Tags]  read_record
+    ${node_addr} =  Get Environment Variable  SERVICE_HOST  127.0.0.1
+    ${step_id} =  Set Variable  read_record_test
+    Remove Directory  ${LOG_DIR}/${step_id}  recursive=True
+    ${args} =  Catenate  SEPARATOR= \\\n\t
+    ...  --load-step-id=${step_id}
+    ...  --storage-net-node-addrs=${node_addr}
+    ...  --run-scenario=${MONGOOSE_CONTAINER_DATA_DIR}/read.js
+    ${std_out} =  Execute Mongoose Scenario  ${args}
+    Log  ${std_out}
+    Validate Metrics Total Log File  ${step_id}  READ  10  0  100
 
 *** Keyword ***
 Execute Mongoose Scenario
@@ -39,6 +54,7 @@ Execute Mongoose Scenario
     ...  --name ${MONGOOSE_CONTAINER_NAME}
     ...  --network host
     ...  --volume ${host_working_dir}/${LOG_DIR}:/root/.mongoose/${version}/log
+    ...  --volume ${host_working_dir}/${DATA_DIR}:${MONGOOSE_CONTAINER_DATA_DIR}
     ...  ${MONGOOSE_IMAGE_NAME}:${image_version}
     ...  ${args}
     ${std_out} =  Run  ${cmd}
