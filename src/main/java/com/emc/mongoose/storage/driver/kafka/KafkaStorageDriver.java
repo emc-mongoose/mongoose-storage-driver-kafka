@@ -480,7 +480,6 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   }
 
   void readTopics(final List<O> topicOps) {
-    // TODO Create cache for Kafka Consumer
     val nodeAddr = topicOps.get(0).nodeAddr();
     try {
       concurrencyThrottle.acquire();
@@ -492,24 +491,23 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
           val consumerConfig = createConsumerConfig(nodeAddr);
           consumerConfig.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, Integer.MAX_VALUE);
           topicOp.startRequest();
-          val kafkaConsumer = new KafkaConsumer<String, byte[]>(consumerConfig);
-          kafkaConsumer.subscribe(Arrays.asList(topicName));
-          topicOp.finishRequest();
-          topicOp.startResponse();
-          var sizeOfReadData = 0;
-          var records = kafkaConsumer.poll(recordOpTimeout);
-          for (var record : records) {
-            sizeOfReadData += record.value().length;
-          }
-          while (!records.isEmpty()) {
-            records = kafkaConsumer.poll(recordOpTimeout);
+          try (val kafkaConsumer = new KafkaConsumer<String, byte[]>(consumerConfig)) {
+            kafkaConsumer.subscribe(Arrays.asList(topicName));
+            topicOp.finishRequest();
+            topicOp.startResponse();
+            var sizeOfReadData = 0;
+            var records = kafkaConsumer.poll(recordOpTimeout);
             for (var record : records) {
               sizeOfReadData += record.value().length;
             }
+            while (!(records = kafkaConsumer.poll(recordOpTimeout)).isEmpty()) {
+              for (var record : records) {
+                sizeOfReadData += record.value().length;
+              }
+            }
+            topicOp.finishResponse();
+            topicOp.countBytesDone(sizeOfReadData);
           }
-          topicOp.finishResponse();
-          topicOp.countBytesDone(sizeOfReadData);
-          kafkaConsumer.close();
           completeOperation((O) topicOp, SUCC);
         } catch (final RuntimeException e) {
           completeOperation((O) topicOp, RESP_FAIL_UNKNOWN);
@@ -573,7 +571,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
     consumerConfig.put(ConsumerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
     consumerConfig.put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
-    consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, "group");
+    consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, String.valueOf(System.currentTimeMillis()));
     consumerConfig.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     try {
       consumerConfig.put(
