@@ -41,6 +41,7 @@ import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -493,10 +494,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
             topicOp.finishRequest();
             topicOp.startResponse();
             var sizeOfReadData = 0;
-            var records = kafkaConsumer.poll(recordOpTimeout);
-            for (var record : records) {
-              sizeOfReadData += record.value().length;
-            }
+            var records = (ConsumerRecords<String, byte[]>) null;
             while (!(records = kafkaConsumer.poll(recordOpTimeout)).isEmpty()) {
               for (var record : records) {
                 sizeOfReadData += record.value().length;
