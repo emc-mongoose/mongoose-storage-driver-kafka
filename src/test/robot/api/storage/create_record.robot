@@ -1,5 +1,5 @@
 *** Settings ***
-Resource    common.robot
+Resource    resource/common.robot
 
 Test Setup       Start Containers
 Test Teardown    Stop Containers
