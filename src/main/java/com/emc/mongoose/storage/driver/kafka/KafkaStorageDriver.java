@@ -320,7 +320,6 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         val recOp = (DataOperation) recOps.get(i);
         // create the new topic if necessary
         topicName = recOp.dstPath().replaceAll("/", "");
-        ;
         topicCreateFunc =
             topicCreateFuncCache.computeIfAbsent(adminClient, TopicCreateFunctionImpl::new);
         topicCache.computeIfAbsent(topicName, topicCreateFunc);
