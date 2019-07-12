@@ -25,7 +25,7 @@ Create Record Test
 
 *** Keyword ***
 Start Containers
-    [Return]    0
+    [Return]    ${0}
 
 Stop Containers
     MongooseKeywords.Remove Mongoose Node
