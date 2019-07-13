@@ -236,6 +236,130 @@ docker run \
 Once the raw operations trace data is obtained, it may be used to produce the end-to-end latency data using the tool:
 <https://github.com/emc-mongoose/e2e-latency-generator>
 
+#### 5.1.6.1 Results 
+
+Scenario example e2e_latency.js:
+
+```javascript
+var topic = "topicTest"
+
+var sharedConfig = {
+	"storage": {
+		"driver": {
+			"type": "kafka"
+		}
+	},
+	"output": {
+		"metrics": {
+			"trace": {
+				"persist": true
+			}
+		}
+	}
+};
+
+var createConfig = {
+    "item" : {
+        "type" : "data",
+        "output" : {
+            "path" : topic
+        }
+    },
+    "load" : {
+        "op" : {
+            "limit" : {
+                "count" : 100000
+            }
+        }
+    }
+};
+
+var readConfig = {
+    "item" : {
+        "type" : "data",
+        "input" : {
+            "path" : topic
+        }
+    },
+    "load" : {
+        "op" : {
+            "type" : "read",
+            "limit" : {
+                "count" : 100000
+            },
+            "recycle" : true
+        }
+    },
+    "storage": {
+    	"driver": {
+    		"record": {
+    			"timeoutMillis": 20000000
+    		}
+    	}
+    }
+};
+
+PipelineLoad
+	.config(sharedConfig)
+	.append(createConfig)
+	.append(readConfig)
+	.run()
+
+```
+
+Command line example:
+
+```bash
+java -jar mongoose-base-<BASE_VERSION>.jar \
+    --storage-driver-type=kafka \
+    --storage-namespace=scope1 \
+    --storage-net-node-port=<NODE_IP_ADDRS> \
+    --run-scenario=e2e_latency.js \
+    --item-data-size=10KB \
+    --load-step-id=e2e_latency_test
+```
+
+Results:
+
+```
+ topicTest/rc5pg0h8inm0	0	        822416
+ topicTest/lfwpiiu2fikv	1547118	        1103614
+ topicTest/7j8jjealg9de	1652626	        1100282
+ topicTest/mbp80u459bph	1668839	        1343374
+ topicTest/hdfzdm6vlrf5	1688294	        1644068
+ topicTest/ez5pyqpuu8kc	1695904	        1946012
+ topicTest/vqu2h9u2y4qo	1750163	        2117425
+ topicTest/35wda8gp04mx	1761060	        2299232
+ topicTest/kpbsih3m0889	1774499	        2410418
+ ...
+ topicTest/goaaqxsa9ybq	357300273	3225957747
+ topicTest/3hacw95eghtg	357315208	3225971922
+ topicTest/h7ungdwyv60y	357319727	3225998184
+ topicTest/2s67q1xbf4et	357323349	3226017715
+ topicTest/1gyo8q56rc5u	357326698	3226036171
+ topicTest/q9kqea4ax6zk	357335902	3226129557
+ topicTest/git5t9azj6w4	357337174	3226214933
+ topicTest/pwyblbk5zsyb	357358322	3226181332
+ topicTest/uhyfh279plsr	357418549	3226169592
+ topicTest/flw9toqtjwty	357438696	3226200149
+
+```
+Each record has has the following columns:
+
+1) Item path 
+2) Item writing start time offset in microseconds 
+3) The calculated end-to-end latency
+
+In this chart above, the min latency value is 822416 μs, max is 3226214933 μs. 
+The ratio between max and min is ~ 3225392517. 
+
+Heatmap Output:
+
+![Heatmap](heatmap.png)
+
+Y axis is logarithmic between the detected latency value min and max. 
+X axis is linear time in ms. 
+
 ## 5.2. Topic Operations
 
 Mongoose should perform the load operations on the *topic* when the configuration option `item-type` is set to `path`.
