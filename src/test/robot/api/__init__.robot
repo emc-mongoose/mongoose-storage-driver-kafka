@@ -1,3 +1,3 @@
 *** Settings ***
-Documentation  Mongoose API suite
-Force Tags API
+Documentation    Mongoose API suite
+Force Tags       API
