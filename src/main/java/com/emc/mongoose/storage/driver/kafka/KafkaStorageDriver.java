@@ -41,6 +41,7 @@ import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -212,6 +213,9 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
         case CREATE:
           createTopics(List.of(op));
           break;
+        case READ:
+          readTopics(List.of(op));
+          break;
         case DELETE:
           deleteTopics(List.of(op));
           break;
@@ -249,6 +253,9 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
           break;
         case CREATE:
           createTopics(ops);
+          break;
+        case READ:
+          readTopics(ops);
           break;
         case DELETE:
           deleteTopics(ops);
@@ -319,7 +326,8 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       for (var i = 0; i < recOps.size(); i++) {
         val recOp = (DataOperation) recOps.get(i);
         // create the new topic if necessary
-        topicName = recOp.dstPath().replaceAll("/","");;
+        topicName = recOp.dstPath().replaceAll("/", "");
+        ;
         topicCreateFunc =
             topicCreateFuncCache.computeIfAbsent(adminClient, TopicCreateFunctionImpl::new);
         topicCache.computeIfAbsent(topicName, topicCreateFunc);
@@ -378,7 +386,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
             recOp = (DataOperation) recOps.get(i);
             recOp.startRequest();
             recOp.finishRequest();
-            val topicName = recOp.srcPath().replaceAll("/","");
+            val topicName = recOp.srcPath().replaceAll("/", "");
             topics.add(topicName);
           }
           consumer.subscribe(topics);
@@ -433,7 +441,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       LogUtil.exception(
           Level.DEBUG,
           thrown,
-          "{}: unexpected failure while trying to create {} records",
+          "{}: unexpected failure while trying to create {} topics",
           stepId,
           topicOps.size());
     }
@@ -467,6 +475,53 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     val oneTopicResult = resultMap.get(topicName);
     oneTopicResult.whenComplete(handleTopicCreateFuture((PathOperation) topicOp));
     topicOp.finishRequest();
+  }
+
+  void readTopics(final List<O> topicOps) {
+    val nodeAddr = topicOps.get(0).nodeAddr();
+    try {
+      concurrencyThrottle.acquire();
+      for (var i = 0; i < topicOps.size(); i++) {
+        val topicOp = (PathOperation) topicOps.get(i);
+        val topicItem = topicOp.item();
+        val topicName = topicItem.name().replaceAll("/", "");
+        try {
+          val consumerConfig = createConsumerConfig(nodeAddr);
+          consumerConfig.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, Integer.MAX_VALUE);
+          topicOp.startRequest();
+          try (val kafkaConsumer = new KafkaConsumer<String, byte[]>(consumerConfig)) {
+            kafkaConsumer.subscribe(Arrays.asList(topicName));
+            topicOp.finishRequest();
+            topicOp.startResponse();
+            var sizeOfReadData = 0;
+            var records = (ConsumerRecords<String, byte[]>) null;
+            while (!(records = kafkaConsumer.poll(recordOpTimeout)).isEmpty()) {
+              for (var record : records) {
+                sizeOfReadData += record.value().length;
+              }
+            }
+            topicOp.finishResponse();
+            topicOp.countBytesDone(sizeOfReadData);
+          }
+          completeOperation((O) topicOp, SUCC);
+        } catch (final RuntimeException e) {
+          completeOperation((O) topicOp, RESP_FAIL_UNKNOWN);
+        }
+        concurrencyThrottle.release();
+      }
+    } catch (final Throwable thrown) {
+      throwUncheckedIfInterrupted(thrown);
+      for (var i = 0; i < topicOps.size(); i++) {
+        val topicOp = topicOps.get(i);
+        completeFailedOperation(topicOp, thrown);
+      }
+      LogUtil.exception(
+          Level.DEBUG,
+          thrown,
+          "{}: unexpected failure while trying to read {} topics",
+          stepId,
+          topicOps.size());
+    }
   }
 
   void deleteTopics(final List<O> topicOps) {}
@@ -511,7 +566,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, nodeAddr);
     consumerConfig.put(ConsumerConfig.SEND_BUFFER_CONFIG, this.sndBuf);
     consumerConfig.put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, this.rcvBuf);
-    consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, "group");
+    consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, String.valueOf(System.currentTimeMillis()));
     consumerConfig.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     try {
       consumerConfig.put(

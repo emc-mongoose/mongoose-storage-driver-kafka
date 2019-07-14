@@ -29,8 +29,8 @@ public class ReadRecordTest {
   private static final String KEY_NAME = "key" + ReadRecordTest.class.getSimpleName();
   private static final String DATA = "test-record";
   private static final String IP = "localhost:9092";
-  private static final Duration TIMEOUT = Duration.ofMillis(1000*8);
-  
+  private static final Duration TIMEOUT = Duration.ofMillis(1000 * 5);
+
   @Before
   public void init() {
     prodProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, IP);
