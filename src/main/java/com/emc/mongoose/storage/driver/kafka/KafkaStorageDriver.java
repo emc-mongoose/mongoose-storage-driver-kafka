@@ -81,8 +81,6 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   private final Map<String, NewTopic> topicCache = new ConcurrentHashMap<>();
   protected final Map<String, String> sharedHeaders = new HashMap<>();
   protected final Map<String, String> dynamicHeaders = new HashMap<>();
-  private static final Function<String, Input<String>> EXPR_INPUT_FUNC =
-      expr -> CompositeExpressionInputBuilder.newInstance().expression(expr).build();
   private final Map<String, Input<String>> headerNameInputs = new ConcurrentHashMap<>();
   private final Map<String, Input<String>> headerValueInputs = new ConcurrentHashMap<>();
   private volatile boolean listWasCalled = false;
@@ -199,6 +197,8 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     String headerValue;
     Input<String> headerNameInput;
     Input<String> headerValueInput;
+    final Function<String, Input<String>> EXPR_INPUT_FUNC =
+            expr -> CompositeExpressionInputBuilder.newInstance().expression(expr).build();
     for (final var nextHeader : dynamicHeaders.entrySet()) {
       headerName = nextHeader.getKey();
 
