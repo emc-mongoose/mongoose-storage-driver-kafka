@@ -197,12 +197,10 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
     String headerValue;
     Input<String> headerNameInput;
     Input<String> headerValueInput;
-    final Function<String, Input<String>> EXPR_INPUT_FUNC =
-            expr -> CompositeExpressionInputBuilder.newInstance().expression(expr).build();
     for (final var nextHeader : dynamicHeaders.entrySet()) {
       headerName = nextHeader.getKey();
 
-      headerNameInput = headerNameInputs.computeIfAbsent(headerName, EXPR_INPUT_FUNC);
+      headerNameInput = headerNameInputs.computeIfAbsent(headerName, expr->CompositeExpressionInputBuilder.newInstance().expression(expr).build());
       if (headerNameInput == null) {
         continue;
       }
@@ -210,7 +208,7 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
       headerName = headerNameInput.get();
       headerValue = nextHeader.getValue();
 
-      headerValueInput = headerValueInputs.computeIfAbsent(headerValue, EXPR_INPUT_FUNC);
+      headerValueInput = headerValueInputs.computeIfAbsent(headerValue, expr->CompositeExpressionInputBuilder.newInstance().expression(expr).build());
       if (headerValueInput == null) {
         continue;
       }
