@@ -78,5 +78,5 @@ Validate Metrics Total Log File
     Should Be Equal As Strings  &{metricsTotal[0]}[OpType]  ${op_type}
     Should Be Equal As Strings  &{metricsTotal[0]}[CountSucc]  ${count_succ}
     Should Be Equal As Strings  &{metricsTotal[0]}[CountFail]  ${count_fail}
-Should Be Equal As Strings &{metricsTotal[0]}[Size] ${transfer_size}
+    Should Be Equal As Strings &{metricsTotal[0]}[Size] ${transfer_size}
 
