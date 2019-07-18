@@ -1,3 +1,3 @@
 *** Settings ***
 Documentation  Mongoose Storage API suite
-Force Tags Storage API
+Force Tags  Storage API
