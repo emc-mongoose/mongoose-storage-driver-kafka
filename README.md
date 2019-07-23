@@ -241,7 +241,7 @@ Once the raw operations trace data is obtained, it may be used to produce the en
 Scenario example e2e_latency.js:
 
 ```javascript
-var topic = "topicTest"
+var topic = "topic"
 
 var sharedConfig = {
 	"storage": {
@@ -250,12 +250,19 @@ var sharedConfig = {
 		}
 	},
 	"output": {
-		"metrics": {
+	    "metrics": {
 			"trace": {
 				"persist": true
 			}
 		}
-	}
+	},
+	"load": {
+	    "op": {
+	        "limit": {
+	            "recycle": 1000
+	        }
+        }
+    }
 };
 
 var createConfig = {
@@ -268,7 +275,7 @@ var createConfig = {
     "load" : {
         "op" : {
             "limit" : {
-                "count" : 100000
+                "count" : 1000000
             }
         }
     }
@@ -285,17 +292,10 @@ var readConfig = {
         "op" : {
             "type" : "read",
             "limit" : {
-                "count" : 100000
+                "count" : 1000000
             },
             "recycle" : true
         }
-    },
-    "storage": {
-    	"driver": {
-    		"record": {
-    			"timeoutMillis": 20000000
-    		}
-    	}
     }
 };
 
@@ -312,36 +312,36 @@ Command line example:
 ```bash
 java -jar mongoose-base-<BASE_VERSION>.jar \
     --storage-driver-type=kafka \
-    --storage-namespace=scope1 \
     --storage-net-node-port=<NODE_IP_ADDRS> \
     --run-scenario=e2e_latency.js \
-    --item-data-size=10KB \
+    --item-data-size=1 \
     --load-step-id=e2e_latency_test
 ```
 
 Results:
 
 ```
- topicTest/rc5pg0h8inm0	0	        822416
- topicTest/lfwpiiu2fikv	1547118	        1103614
- topicTest/7j8jjealg9de	1652626	        1100282
- topicTest/mbp80u459bph	1668839	        1343374
- topicTest/hdfzdm6vlrf5	1688294	        1644068
- topicTest/ez5pyqpuu8kc	1695904	        1946012
- topicTest/vqu2h9u2y4qo	1750163	        2117425
- topicTest/35wda8gp04mx	1761060	        2299232
- topicTest/kpbsih3m0889	1774499	        2410418
+ topic/h7r9j6cz0mtk,0,24783469
+ topic/z0zoqp868v75,39948230,27580282
+ topic/tlp1bns9jc7p,40276731,29334974
+ topic/6txhtx4ljv5,40471469,31805473
+ topic/oxcouyv1dycw,40510647,32548057
+ topic/gohqxf7oafbp,40635783,33145122
+ topic/g6auzxpfz4id,40708983,33710917
+ topic/azdtimn0292s,40824477,34392279
+ topic/m9iflaa0ezrf,40845198,34853497
+ topic/r9etwfl5is4,40865059,35485910
  ...
- topicTest/goaaqxsa9ybq	357300273	3225957747
- topicTest/3hacw95eghtg	357315208	3225971922
- topicTest/h7ungdwyv60y	357319727	3225998184
- topicTest/2s67q1xbf4et	357323349	3226017715
- topicTest/1gyo8q56rc5u	357326698	3226036171
- topicTest/q9kqea4ax6zk	357335902	3226129557
- topicTest/git5t9azj6w4	357337174	3226214933
- topicTest/pwyblbk5zsyb	357358322	3226181332
- topicTest/uhyfh279plsr	357418549	3226169592
- topicTest/flw9toqtjwty	357438696	3226200149
+ topic/t54d9deejguy,2954340782,30107011025
+ topic/16vhzvhw11sp,2954341641,30107029774
+ topic/nyjq2l2uk1kd,2954342243,30107050436
+ topic/oh7zv7sii4nd,2954342925,30107081205
+ topic/7eqxrpt20pa1,2954343556,30107102342
+ topic/gl1w13xmz1v,2954344453,30107120725
+ topic/2k9i0cdxglpf,2954345143,30107141259
+ topic/iuswkxqxeorx,2954345930,30107164887
+ topic/suy5gu6ajf4n,2954346629,30107250413
+ topic/8b7s40r29iel,2954348924,30107249488
 
 ```
 Each record has has the following columns:
@@ -350,15 +350,15 @@ Each record has has the following columns:
 2) Item writing start time offset in microseconds 
 3) The calculated end-to-end latency
 
-In this chart above, the min latency value is 822416 μs, max is 3226214933 μs. 
-The ratio between max and min is ~ 3225392517. 
+In this chart above, the min latency value is 24 783 469 μs, max is 30 107 249 488 μs. 
+The ratio between max and min is ~ 30 082 466 019. 
 
 Heatmap Output:
 
 ![Heatmap](heatmap.png)
 
-Y axis is logarithmic between the detected latency value min and max. 
-X axis is linear time in ms. 
+Y axis is logarithmic between the detected latency value min and max. By default it's height is 100 px and corresponding 100 rows.
+X axis is linear. By default it's width is the count of pixels equal max timestamp minus min. 
 
 ## 5.2. Topic Operations
 
