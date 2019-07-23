@@ -244,23 +244,23 @@ Scenario example e2e_latency.js:
 var topic = "topic"
 
 var sharedConfig = {
-	"storage": {
-		"driver": {
-			"type": "kafka"
-		}
-	},
-	"output": {
-	    "metrics": {
-			"trace": {
-				"persist": true
-			}
-		}
-	},
-	"load": {
-	    "op": {
-	        "limit": {
-	            "recycle": 1000
-	        }
+    "storage": {
+        "driver": {
+            "type": "kafka"
+        }
+    },
+    "output": {
+        "metrics": {
+	    "trace": {
+	        "persist": true
+            }
+        }
+    },
+    "load": {
+        "op": {
+	    "limit": {
+	        "recycle": 1000
+	    }
         }
     }
 };
