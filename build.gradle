@@ -23,7 +23,7 @@ repositories {
 }
 description = "Mongoose is a high-load storage performance testing tool"
 group = "com.github.emc-mongoose"
-version = "4.2.8"
+version = "4.2.9"
 sourceCompatibility = 11
 targetCompatibility = 11
 
@@ -37,9 +37,9 @@ ext {
 		javaxActivation			 : "1.1",
 		kafka					 : "2.2.0", 
 		log4j                    : "2.19.0",
-		mongooseBase             : "4.2.11",
-		mongooseLoadStepPipeline : "4.2.9",
-		mongooseStorageDriverPreempt: "4.2.14",
+		mongooseBase             : "4.3.3",
+		mongooseLoadStepPipeline : "4.2.13",
+		mongooseStorageDriverPreempt: "4.2.24",
 		scala                    : "2.12.6",
 	]
 	rootPkg = "com.emc.mongoose.storage.driver.kafka"

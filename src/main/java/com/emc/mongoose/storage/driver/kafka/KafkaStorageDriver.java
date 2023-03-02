@@ -183,7 +183,6 @@ public class KafkaStorageDriver<I extends Item, O extends Operation<I>>
   }
 
   /** @return true if the load operations are about the Kafka records, false otherwise */
-  @Override
   protected final boolean isBatch(final List<O> ops, final int from, final int to) {
     return true;
   }
